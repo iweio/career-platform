@@ -1,12 +1,12 @@
 <template>
-  <div class="favorite-jobs">
-    <div v-if="favoriteList.length === 0" class="empty-state">
+  <div class="favorite-jobs" v-loading="loading">
+    <div v-if="!loading && favoriteList.length === 0" class="empty-state">
       <el-empty description="暂无收藏岗位，快去探索吧！">
         <el-button type="primary" @click="goToExplore">去探索岗位</el-button>
       </el-empty>
     </div>
 
-    <div v-else class="job-list">
+    <div v-else-if="!loading" class="job-list">
       <div
         v-for="job in favoriteList"
         :key="job.id"
@@ -55,22 +55,27 @@ import { favoritesApi } from '@/api/favorites'
 
 const router = useRouter()
 const favoriteList = ref([])
+const loading = ref(true)
 
 const loadFavorites = async () => {
   try {
     const { data } = await favoritesApi.list()
-    favoriteList.value = (data.favorites || []).map((f) => ({
-      id: f.job_id,
-      title: f.job_title,
-      company: f.company,
-      salary: f.salary_range || '面议',
-      city: f.city || '--',
-      experience: f.experience || '--',
-      industry: f.industry || '',
-      tags: f.industry ? f.industry.split(',').slice(0, 2) : [],
-    }))
+    if (data.success && Array.isArray(data.data)) {
+      favoriteList.value = data.data.map((f) => ({
+        id: f.job_id,
+        title: f.job_title,
+        company: f.company,
+        salary: f.salary_range || '面议',
+        city: f.city || '--',
+        experience: f.experience || '--',
+        industry: f.industry || '',
+        tags: f.industry ? f.industry.split(',').slice(0, 2) : [],
+      }))
+    }
   } catch {
     favoriteList.value = []
+  } finally {
+    loading.value = false
   }
 }
 

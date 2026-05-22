@@ -109,16 +109,35 @@
 import { ref, onMounted, onUnmounted, defineProps, defineEmits, nextTick } from 'vue'
 import { School, Message, MagicStick } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { profileApi } from '@/api/profile'
 
 const props = defineProps(['userInfo'])
 const emit = defineEmits(['re-edit'])
 
-// 🌟 1. 补全缺失的响应式变量声明
-const loading = ref(true) 
+const loading = ref(true)
 const radarRef = ref(null)
 const wordCloudRef = ref(null)
 const competitivenessScore = ref(88)
 const aiSuggestions = ref('')
+const radarValues = ref([85, 90, 95, 95, 80, 85, 60])
+const wordCloudData = ref([
+  { name: '数据结构与算法', value: 80 }, { name: 'Java', value: 60 },
+  { name: '自主学习', value: 65 }, { name: '团队统筹', value: 70 },
+  { name: '软件开发', value: 55 }, { name: '跨部门协作', value: 55 },
+])
+
+const loadAnalysis = async () => {
+  try {
+    const { data } = await profileApi.analysis()
+    if (data.success && data.data) {
+      const d = data.data
+      if (d.competitiveness_score) competitivenessScore.value = d.competitiveness_score
+      if (d.radar_data?.length) radarValues.value = d.radar_data
+      if (d.word_cloud?.length) wordCloudData.value = d.word_cloud
+      if (d.analysis_report?.summary) aiSuggestions.value = d.analysis_report.summary
+    }
+  } catch { /* keep mock fallback */ }
+}
 
 // 🌟 2. 声明图表实例变量（防止 ReferenceError）
 let radarInstance = null
@@ -126,34 +145,20 @@ let wordCloudInstance = null
 
 const avatarUrl = 'https://ui-avatars.com/api/?name=User&background=ebf5ff&color=70a1ff'
 
-// 模拟获取数据
-const mockFetchData = () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      competitivenessScore.value = 87.5
-      aiSuggestions.value = "根据您的经历分析，您在技术架构方面表现卓越..." 
-      loading.value = false // 现在 loading 已定义，不会报错了
-      resolve()
-    }, 800)
-  })
-}
-
-// 🌟 3. 补全缺失的适配函数
 const handleResize = () => {
   radarInstance?.resize()
   wordCloudInstance?.resize()
 }
 
 onMounted(async () => {
-  await mockFetchData()
+  await loadAnalysis()
   await nextTick()
-  
-  // 延迟执行以确保容器宽高已由浏览器计算完毕
+  loading.value = false
   setTimeout(() => {
     initRadarChart()
     initWordCloud()
     window.addEventListener('resize', handleResize)
-  }, 150) 
+  }, 150)
 })
 
 // 🌟 4. 这里的销毁和注销很重要
@@ -198,7 +203,7 @@ const initRadarChart = () => {
     series: [{
       type: 'radar',
       data: [{
-        value: [85, 90, 95, 95, 80, 85, 60],
+        value: radarValues.value,
         areaStyle: { color: 'rgba(112, 161, 255, 0.25)' },
         lineStyle: { color: '#70a1ff', width: 2.5 },
         itemStyle: { color: '#70a1ff' }
@@ -213,11 +218,8 @@ const initWordCloud = () => {
   
   wordCloudInstance = echarts.init(wordCloudRef.value)
 // 更加明亮、通透的浅色调
-const colorPalette = ['#7dd3fc', '#a5b4fc', '#99f6e4', '#fef08a']; const data = [
-    { name: '数据结构与算法', value: 80 }, { name: 'Java', value: 60 }, 
-    { name: '自主学习', value: 65 }, { name: '团队统筹', value: 70 },
-    { name: '软件开发', value: 55 }, { name: '跨部门协作', value: 55 }
-  ]
+const colorPalette = ['#7dd3fc', '#a5b4fc', '#99f6e4', '#fef08a']
+const data = wordCloudData.value
   
   wordCloudInstance.setOption({
     series: [{

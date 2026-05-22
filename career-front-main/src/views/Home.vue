@@ -788,21 +788,56 @@ const startTyping = () => {
 
 // 搜索相关
 const searchKeyword = ref('')
-const hotSearchTags = ref(['Java 工程师', '前端开发', '算法专家', '产品经理', '数据分析师', 'AI 工程师'])
+const hotSearchTags = ref([])
 
-// 职业分类
-const categories = ref([
-  { name: '前端开发 · 交互重构', icon: 'Monitor', tag: 'AI 增益', insight: { forecast: '18个月', deviation: '85%', decision: '建议强化 WebAssembly 实战，补齐高性能渲染画像。' } },
-  { name: '后端开发 · 架构设计', icon: 'Cpu', tag: '高需求', insight: { forecast: '36个月', deviation: '92%', decision: '画像匹配度高，建议关注分布式一致性协议的深度原理。' } },
-  { name: 'AI 算法 · 模型演进', icon: 'MagicStick', tag: '快迭代', insight: { forecast: '6个月', deviation: '70%', decision: '技术更迭极快，建议从模型调用转向垂直领域微调。' } },
-  { name: '产品经理 · 数字转型', icon: 'User', tag: '跨界型', insight: { forecast: '24个月', deviation: '78%', decision: '缺乏数据驱动决策背书，建议关联个人中心的能力证明。' } },
-  { name: '网络安全 · 攻防演练', icon: 'Lock', tag: '高门槛', insight: { forecast: '30个月', deviation: '65%', decision: 'AI 自动化攻击加剧，需提升零信任架构的规划能力。' } },
-  { name: '数据分析 · 决策支持', icon: 'PieChart', tag: '核心岗', insight: { forecast: '22个月', deviation: '88%', decision: '建议掌握自动化报表工具，将精力转向业务价值挖掘。' } },
-  { name: '移动开发 · 跨端框架', icon: 'Iphone', tag: '稳健型', insight: { forecast: '20个月', deviation: '80%', decision: '原生开发需求收缩，建议向 Flutter 或 HarmonyOS 演进。' } },
-  { name: '运维开发 · SRE', icon: 'Setting', tag: '硬核岗', insight: { forecast: '28个月', deviation: '75%', decision: 'AIOps 普及中，建议学习如何利用大模型优化告警预测。' } },
-  { name: 'UI/UX · 体验设计', icon: 'Brush', tag: '视觉系', insight: { forecast: '15个月', deviation: '82%', decision: '单纯绘图易被替代，需强化“交互逻辑与用户行为分析”。' } },
-  { name: '测试开发 · 自动化', icon: 'CircleCheck', tag: '品质岗', insight: { forecast: '24个月', deviation: '90%', decision: '测试用例生成已 AI 化，建议向全链路压测与安全扫描转型。' } }
-]);
+// 职业分类 — 从 API 加载，失败回退硬编码
+const categories = ref([])
+const DEFAULT_CATEGORIES = [
+  { id: 1, name: '后端开发', icon: 'Monitor', tag: '高需求', scarcity: '高需求' },
+  { id: 2, name: '前端开发', icon: 'Grid', tag: '热门', scarcity: '热门' },
+  { id: 3, name: 'AI / 机器学习', icon: 'Cpu', tag: '新兴', scarcity: '稀缺' },
+  { id: 4, name: '数据分析', icon: 'DataAnalysis', tag: '高薪', scarcity: '热门' },
+  { id: 5, name: '产品经理', icon: 'User', tag: '管理岗', scarcity: '稳定' },
+  { id: 6, name: 'UI / UX 设计', icon: 'Brush', tag: '创意', scarcity: '稳定' },
+  { id: 7, name: '网络安全', icon: 'Lock', tag: '稀缺', scarcity: '稀缺' },
+  { id: 8, name: '云计算', icon: 'Cloudy', tag: '增长快', scarcity: '高需求' },
+  { id: 9, name: '移动端开发', icon: 'Iphone', tag: '稳定', scarcity: '稳定' },
+  { id: 10, name: '测试开发', icon: 'Checked', tag: '基础岗', scarcity: '稳定' },
+]
+const MOCK_INSIGHTS = {
+  1: { forecast: '36个月', deviation: '92%', decision: '画像匹配度高，建议关注分布式一致性协议的深度原理。' },
+  2: { forecast: '18个月', deviation: '85%', decision: '建议强化 WebAssembly 实战，补齐高性能渲染画像。' },
+  3: { forecast: '6个月', deviation: '70%', decision: '技术更迭极快，建议从模型调用转向垂直领域微调。' },
+  4: { forecast: '22个月', deviation: '88%', decision: '建议掌握自动化报表工具，将精力转向业务价值挖掘。' },
+  5: { forecast: '24个月', deviation: '78%', decision: '缺乏数据驱动决策背书，建议关联个人中心的能力证明。' },
+  6: { forecast: '15个月', deviation: '82%', decision: '单纯绘图易被替代，需强化”交互逻辑与用户行为分析”。' },
+  7: { forecast: '30个月', deviation: '65%', decision: 'AI 自动化攻击加剧，需提升零信任架构的规划能力。' },
+  8: { forecast: '28个月', deviation: '75%', decision: 'AIOps 普及中，建议学习如何利用大模型优化告警预测。' },
+  9: { forecast: '20个月', deviation: '80%', decision: '原生开发需求收缩，建议向 Flutter 或 HarmonyOS 演进。' },
+  10: { forecast: '24个月', deviation: '90%', decision: '测试用例生成已 AI 化，建议向全链路压测与安全扫描转型。' },
+}
+
+const loadCategories = async () => {
+  try {
+    const { data } = await jobsApi.categories()
+    if (data.success && data.data?.length) {
+      categories.value = data.data.map(c => ({ ...c, insight: MOCK_INSIGHTS[c.id] || {} }))
+      return
+    }
+  } catch { /* fallback */ }
+  categories.value = DEFAULT_CATEGORIES.map(c => ({ ...c, insight: MOCK_INSIGHTS[c.id] || {} }))
+}
+
+const loadHotTags = async () => {
+  try {
+    const { data } = await jobsApi.hotTags()
+    if (data.success && data.data?.length) {
+      hotSearchTags.value = data.data
+      return
+    }
+  } catch { /* fallback */ }
+  hotSearchTags.value = ['Java 工程师', '前端开发', '算法专家', '产品经理', '数据分析师', 'AI 工程师']
+}
 const currentCategory = ref(1)
 
 // 登录状态
@@ -904,6 +939,8 @@ const goToProfile = () => router.push('/profile/info')
 
 // 生命周期
 onMounted(() => {
+  loadCategories()
+  loadHotTags()
   loadHotJobs()
   window.addEventListener('resize', handleResize)
 })

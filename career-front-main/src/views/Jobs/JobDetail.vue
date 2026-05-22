@@ -75,7 +75,7 @@
           </div>
         </template>
         
-        <PromotionGraph :jobTitle="job?.title" />
+        <PromotionGraph :jobTitle="job?.title" :paths="promotionPaths" />
       </el-card>
 
     </main>
@@ -90,8 +90,7 @@ import { ElMessage } from 'element-plus'
 import { jobsApi } from '@/api/jobs'
 import { favoritesApi } from '@/api/favorites'
 import ForceGraph from 'force-graph'
-import * as d3 from 'd3';
-import * as G6 from '@antv/g6';
+import * as d3 from 'd3'
 import PromotionGraph from '@/components/PromotionGraph.vue'
 import { mockGraphData } from '@/assets/mockGraph.js'
 
@@ -210,19 +209,18 @@ ctx.fillStyle = node.level === 1 ? '#ffffff' : '#001f3f';
 
 const loading = ref(true)
 const job = ref(null)
+const promotionPaths = ref([])
 const router = useRouter()
 const route = useRoute()
 const isFavorited = ref(false)
 const jobId = computed(() => route.params.id)
 
-// 在页面挂载后启动
 onMounted(async () => {
-  // Load job from API
   const targetId = parseInt(route.params.id)
   try {
     const { data } = await jobsApi.detail(targetId)
-    if (data.job) {
-      const item = data.job
+    const item = data.data || data.job || {}
+    if (item.id) {
       job.value = {
         id: item.id,
         title: item.job_title || item.title,
@@ -232,21 +230,22 @@ onMounted(async () => {
         description: item.job_description || item.description || '暂无描述',
       }
     }
-  } catch {
-    // Job not found — keep null
-  }
+  } catch { /* keep null */ }
 
-  // Check favorite status
+  try {
+    const { data: pData } = await jobsApi.promotion(targetId)
+    if (pData.success && pData.data?.paths) {
+      promotionPaths.value = pData.data.paths
+    }
+  } catch { /* keep mock fallback */ }
+
   try {
     const { data: favData } = await favoritesApi.list()
-    const favIds = (favData.favorites || []).map((f) => f.job_id)
+    const favIds = (favData.data || favData.favorites || []).map((f) => f.job_id)
     isFavorited.value = favIds.includes(targetId)
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 
   loading.value = false
-
   await nextTick()
   initGraph()
 })
@@ -282,102 +281,11 @@ const toggleFavorite = async () => {
 
 // 2. 在 toggleFavorite 函数下方追加以下绘图逻辑
 const graph = ref(null);
-const currentJobTitle = ref('软件测试工程师（专项方向）'); // 这里可以根据 job.value.title 动态匹配
-
-
-
-const promotionGraphInstance = ref(null);
-
-const initPromotionGraph = () => {
-  const container = document.getElementById('promotion-graph-container');
-  if (!container || !job.value) return;
-
-  // 1. 销毁旧实例，防止重复渲染
-  if (promotionGraphInstance.value) {
-    promotionGraphInstance.value.destroy();
-    promotionGraphInstance.value = null;
-  }
-
-  // 2. 统一获取岗位名称
-  const currentTitle = (job.value.job_title || job.value.title || "").trim();
-  
-  // 3. 过滤数据
-  const filtered = promotionData.filter(item => 
-    item.tech_type === currentTitle
-  );
-
-  // 调试：请在浏览器控制台查看这里是否有数据输出
-  console.log('当前页面岗位:', currentTitle);
-  console.log('匹配到的晋升路径数据:', filtered);
-
-  if (filtered.length === 0) {
-    console.warn(`未匹配到 "${currentTitle}" 的晋升数据，请检查 JSON 里的 tech_type`);
-    return;
-  }
-
-  // 4. 处理节点坐标 (将 fx, fy 映射到 G6 的 x, y)
-  const nodes = filtered.map(item => ({
-    id: item.title,
-    label: `${item.level}\n${item.title}`,
-    // 使用相对坐标，配合下面的 fitView: true 自动居中
-    x: item.fx, 
-    y: item.fy, 
-    type: 'modelRect',
-    style: {
-      fill: item.type === 'management' ? '#FDF6EC' : '#ffffff',
-      stroke: item.type === 'management' ? '#E6A23C' : '#409EFF',
-      lineWidth: 2,
-      radius: 4,
-    },
-    labelCfg: {
-      style: {
-        fontSize: 10,
-        fill: '#333'
-      }
-    }
-  }));
-
-  // 5. 生成连线 (根据 fy 排序连线)
-  const edges = [];
-  const sortedNodes = [...nodes].sort((a, b) => a.y - b.y);
-  for (let i = 0; i < sortedNodes.length - 1; i++) {
-    edges.push({
-      source: sortedNodes[i].id,
-      target: sortedNodes[i+1].id,
-      style: { stroke: '#A2B1C3', endArrow: true }
-    });
-  }
-
-  // 6. 初始化并渲染图谱
-  promotionGraphInstance.value = new G6.Graph({
-    container: 'promotion-graph-container',
-    width: container.scrollWidth,
-    height: 450,
-    fitView: true, // 核心：自动缩放以适配 fy 很大的数值
-    fitViewPadding: 30,
-    modes: {
-      default: ['drag-canvas', 'zoom-canvas', 'drag-node'],
-    },
-    defaultNode: {
-      size: [120, 40],
-    }
-  });
-
-  promotionGraphInstance.value.data({ nodes, edges });
-  promotionGraphInstance.value.render();
-};
-
-
 onBeforeUnmount(() => {
-  // 清理 Neo4j 实例
   if (graphInstance && typeof graphInstance._destructor === 'function') {
-    graphInstance._destructor();
+    graphInstance._destructor()
   }
-  // 清理 G6 实例
-  if (promotionGraphInstance.value) {
-    promotionGraphInstance.value.destroy();
-  }
-});
+})
 </script>
 
 <style scoped lang="scss">

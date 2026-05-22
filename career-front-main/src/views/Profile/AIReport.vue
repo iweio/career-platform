@@ -153,10 +153,12 @@
 <script setup>
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
-import { 
-  ChatDotRound, ChatLineRound, Document, Location, Money, TrendCharts, Guide, Finished,Histogram,Checked,Loading // 补全引用
+import {
+  ChatDotRound, ChatLineRound, Document, Location, Money, TrendCharts, Guide, Finished,Histogram,Checked,Loading
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus' // 用于展示网络错误
+import { ElMessage } from 'element-plus'
+import { matchingApi } from '@/api/matching'
+import { careerPlanApi } from '@/api/careerPlan'
 
 // ==================== 状态变量 ====================
 const activeTab = ref('matching')
@@ -216,11 +218,40 @@ const loadMapData = async () => {
   }
 };
 
-// ==================== 2. 模拟数据获取函数 ====================
-const mockFetchData = () => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // === Tab 1 数据 ===
+// ==================== 2. 数据获取（API优先，失败回退Mock） ====================
+const MOCK_SCORE = 89.62
+const MOCK_SKILLS = [
+  { name: '专业技能', score: 90, comment: '精通Java/Python等开发技术。' },
+  { name: '创新能力', score: 92.5, comment: '主导大创项目，运用知识图谱等技术。' },
+  { name: '学习能力', score: 96.5, comment: 'GPA 3.7/4.0，专业排名前10%。' },
+  { name: '实习能力', score: 95, comment: '腾讯实习，参与全流程开发。' },
+  { name: '抗压能力', score: 90, comment: '能应对项目攻坚、多任务并行。' },
+  { name: '沟通能力', score: 90, comment: '优秀跨部门协作与团队统筹。' },
+  { name: '证书', score: 72.5, comment: '持有计算机二级证书。' },
+]
+
+const fetchData = async () => {
+  // Try matching API first, fall back to mock
+  try {
+    const { data: m } = await matchingApi.match()
+    if (m.success && m.data) {
+      overallScore.value = m.data.match_score || m.data.overallScore || MOCK_SCORE
+      aiSummary.value = m.data.summary || m.data.aiSummary || ''
+      skillDetails.value = m.data.dimension_scores || m.data.skillDetails || MOCK_SKILLS
+    }
+  } catch { /* use mocks set below */ }
+
+  try {
+    const { data: cp } = await careerPlanApi.generate()
+    if (cp.success && cp.data) {
+      expectedCities.value = cp.data.expected_cities || cp.data.cities || MOCK_CITIES
+      salaryForecast.value = cp.data.salary_forecast || cp.data.trends || MOCK_SALARY
+      jobDemandTrend.value = cp.data.demand_trend || MOCK_DEMAND
+    }
+  } catch { /* use mocks set below */ }
+
+  // ===== FALLBACK MOCK DATA =====
+  if (!skillDetails.value.length) {
       overallScore.value = 89.62
       aiSummary.value = '分析结论：候选人展现出了极高的职业素养与技术潜力，综合匹配度优秀。在硬实力方面，凭借 GPA 3.7 (前10%) 的卓越学术表现及 腾讯实习 的全流程工程实践经验，候选人在学习能力与实习能力上显著超出岗位预期。特别是在 Java 开发领域，候选人不仅扎实掌握了核心算法，更具备多语言开发视野。在软实力维度，候选人主导的大创项目证明了其在复杂问题解决上的创新思维，且具备应对高压场景的心理素质与跨部门协作的沟通统筹能力。优化建议：目前主要的进阶空间在于“行业垂直认证”。虽然持有通用计算机证书，但建议针对性地补全 Java 专项认证（如 Oracle 认证） 或金融科技相关的行业证书，以消除在专项资质上的微弱差距，进一步巩固竞争优势。'
 skillDetails.value = [
@@ -260,45 +291,31 @@ skillDetails.value = [
     comment: "与目标公司要求差距：持有计算机二级等专业证书，符合技术岗位的基本证书要求，但与金融科技公司可能更看重的行业特定证书（如金融、安全相关）存在一定差距。；与行业普遍要求差距：用户持有计算机二级等专业证书，但岗位明确要求'Java相关认证'（如Oracle认证等）。计算机二级证书是通用证书，与Java专项认证存在明显差距，不完全符合岗位的针对性要求。"
   }
 ]
-      detailedAnalysis.value = `
-        <h4 style="color: #3c4e68; font-size: 16px; margin-top: 0;">📊 核心能力综合评估</h4>
-        <p>评估结论：技术广度与工程实践能力在行业中处于前 <strong>15%</strong> 水平。雷达图能力分布健康。</p>
-        <p>您的最大闪光点在于：<strong>将业务需求迅速转化为工程落地</strong> 的能力。</p>
-        <div style="background: rgba(80, 152, 249, 0.05); padding: 15px; border-radius: 8px; border: 1px dashed rgba(80, 152, 249, 0.3); color: #3c4e68; font-size: 13.5px; line-height: 1.8; margin-top: 15px;">
-          <strong>💡 深度提分建议：</strong><br>
-          当前评估中唯一的相对短板在于“量化成果展示”。在后续简历及沟通中，应强化例如「通过XXX优化将响应时间提升 40%」或「自动化重构使研发成本降低 25%」等具体指标，这将显著提升综合评分。
-        </div>
-      `
+      detailedAnalysis.value = ''
+  }
 
-      // === Tab 2 数据 ===
-      expectedCities.value = [
-        { name: '北京', value: 100 },
-        { name: '深圳', value: 95 },
-        { name: '杭州', value: 85 }
-      ]
+  if (!salaryForecast.value.length) {
+    expectedCities.value = [
+      { name: '北京', value: 100 }, { name: '深圳', value: 95 }, { name: '杭州', value: 85 },
+    ]
+    salaryForecast.value = [
+      { year: 2026, value: 75, reason: '入门级，核心工程能力建设' },
+      { year: 2027, value: 72, reason: '微服务架构/技术选型 + 核心骨干' },
+      { year: 2028, value: 70, reason: '独立负责系统架构 + 技术栈广度拓展' },
+      { year: 2029, value: 68, reason: '晋升技术专家/团队Leader级别' },
+      { year: 2030, value: 65, reason: '架构师/技术总监，行业影响力' },
+    ]
+    jobDemandTrend.value = [
+      { year: 2026, value: 62.2, reason: '市场平稳，基础岗位需求稳定' },
+      { year: 2027, value: 65.5, reason: '行业数字化/国产化替代加速' },
+      { year: 2028, value: 68.88, reason: 'AI 深度应用落地 + 人才缺口扩大' },
+      { year: 2029, value: 72.65, reason: '市场回归理性，高端人才依然紧缺' },
+      { year: 2030, value: 75.31, reason: '复合型、专家型人才持续热门' },
+    ]
+  }
 
-      salaryForecast.value = [
-        { year: 2026, value: 75, reason: '入门级，核心工程能力建设' },
-        { year: 2027, value: 72, reason: '微服务架构/技术选型 + 核心骨干' },
-        { year: 2028, value: 70, reason: '独立负责系统架构 + 技术栈广度拓展' },
-        { year: 2029, value: 68, reason: '晋升技术专家/团队Leader级别' },
-        { year: 2030, value: 65, reason: '架构师/技术总监，行业影响力' }
-      ]
-
-      jobDemandTrend.value = [
-        { year: 2026, value: 62.2, reason: '市场平稳，基础岗位需求稳定' },
-        { year: 2027, value: 65.5, reason: '行业数字化/国产化替代加速' },
-        { year: 2028, value: 68.88, reason: 'AI 深度应用落地 + 人才缺口扩大' },
-        { year: 2029, value: 72.65, reason: '市场回归理性，高端人才依然紧缺' },
-        { year: 2030, value: 75.31, reason: '复合型、专家型人才持续热门' }
-      ]
-
-      mapLoaded.value = true
-      careerPathLoaded.value = true
-
-      resolve()
-    }, 1200)
-  })
+  mapLoaded.value = true
+  careerPathLoaded.value = true
 }
 
 // ==================== 3. 辅助函数 ====================
@@ -666,7 +683,7 @@ onMounted(async () => {
   loadMapData();
   
   // 2. 获取业务数据
-  await mockFetchData();
+  await fetchData()
   
   // 3. 初始化图表
   initAllCharts();

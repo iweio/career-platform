@@ -5,9 +5,7 @@ export const authApi = {
     return api.post('/auth/register', data)
   },
   login(data) {
-    return api.post('/auth/login', new URLSearchParams(data), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    })
+    return api.post('/auth/login', data)
   },
   refresh(refreshToken) {
     return api.post('/auth/refresh', { refresh_token: refreshToken })

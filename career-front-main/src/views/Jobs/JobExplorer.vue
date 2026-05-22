@@ -149,7 +149,7 @@ const loadJobs = async () => {
       params[tag.type] = tag.value
     })
     const { data } = await jobsApi.search(searchQuery.value || '', params)
-    allJobs.value = (data.jobs || []).map((item, index) => ({
+    allJobs.value = (data.data?.results || []).map((item, index) => ({
       ...item,
       id: item.id || index + 1,
       title: item.job_title || item.title,

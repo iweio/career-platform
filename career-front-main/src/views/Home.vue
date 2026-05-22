@@ -414,7 +414,7 @@ const hotJobs = ref([])
 const loadHotJobs = async () => {
   try {
     const { data } = await jobsApi.list({ page_size: 10 })
-    hotJobs.value = (data.jobs || []).map((item) => ({
+    hotJobs.value = (data.data?.jobs || []).map((item) => ({
       id: item.id,
       jobTitle: item.job_title || item.title,
       companyName: item.company_name || item.company,

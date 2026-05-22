@@ -90,53 +90,28 @@ import { ElMessage } from 'element-plus'
 import { jobsApi } from '@/api/jobs'
 import { favoritesApi } from '@/api/favorites'
 import ForceGraph from 'force-graph'
-import neo4j from 'neo4j-driver'
 import * as d3 from 'd3';
 import * as G6 from '@antv/g6';
 import PromotionGraph from '@/components/PromotionGraph.vue'
+import { mockGraphData } from '@/assets/mockGraph.js'
+
 // --- 1. 引用和状态 ---
 const graphContainer = ref(null)
 let graphInstance = null
 
-// --- 2. Neo4j 连接配置 ---
-// 这里等同学发地址后，替换成 'bolt://xxx.cpolar.top:xxx'
-const NEO4J_URL = 'bolt://localhost:7687' 
-const driver = neo4j.driver(NEO4J_URL, neo4j.auth.basic('', ''))
-
-const NODE_CONFIG = {
-  Job: { color: '#6fb1fc', size: 10 },        // 中心岗位：蓝色，最大
-  Skill: { color: '#f79767', size: 7 },      // 技能：橙色，中等
-  Requirement: { color: '#57c7e3', size: 6 }, // 要求：青色
-  Default: { color: '#d3d3d3', size: 5 }      // 其他：灰色
-};
-
 // --- 3. 初始化图谱函数 ---
 const initGraph = async () => {
 
-  // JobDetail.vue 约 160 行 initGraph 函数内
 const LEVEL_COLORS = {
-  1: '#FF8C00', // 第一级：深橙色，突出中心岗位
-  2: '#E6E6FA', // 第二级：深天蓝色，与第一级有明显色差
+  1: '#FF8C00',
+  2: '#E6E6FA',
 };
 
-// 第三级：随机彩色池（淡雅色系，保证文字清晰）
-const THIRD_LEVEL_COLORS = ['#7fb8ee', '#76d7ea', '#8de3c0', '#b6e39a', '#f3d999', '#f7a8a8'];  if (!graphContainer.value || !job.value) return;
+const THIRD_LEVEL_COLORS = ['#7fb8ee', '#76d7ea', '#8de3c0', '#b6e39a', '#f3d999', '#f7a8a8'];
 
-  const nameMap = {
-    "软件测试": "软件测试工程师（专项方向）",
-    "C/C++": "C++",
-    "前端开发": "前端开发工程师",
-    "Java": "Java开发工程师", 
-    "硬件测试": "硬件测试工程师",
-    "测试工程师": "测试工程师（软件方向）",
-    // 你可以根据需要继续在这里添加剩下的岗位映射
-  };
+if (!graphContainer.value || !job.value) return;
 
-  // 2. 获取最终用于查询的字符串
-  // 如果在 map 里找到了就用映射后的，没找到就直接用原标题
-  const searchTitle = nameMap[job.value.title] || job.value.title;
-
-  if (graphInstance) graphInstance._destructor();
+if (graphInstance) graphInstance._destructor();
 
   // 2. 初始化实例（不依赖外部 d3 变量）
 graphInstance = ForceGraph()(graphContainer.value)
@@ -213,97 +188,23 @@ ctx.fillStyle = node.level === 1 ? '#ffffff' : '#001f3f';
     .d3VelocityDecay(0.2)
     
 
+  // TODO: 替换为后端 API GET /api/v1/jobs/{id}/graph
   try {
-    const session = driver.session();
-    // 使用模糊匹配，增加查询范围
-    const cypher = `
-      MATCH (j:Job)-[r*1..2]-(m) 
-      WHERE j.title = $jobTitle OR j.name CONTAINS $jobTitle
-      RETURN j,r,m LIMIT 300
-    `;
-    const result = await session.run(cypher, { jobTitle: searchTitle });
-
-    const nodes = [];
-    const links = [];
-
-    result.records.forEach(record => {
-      ['j', 'm'].forEach(key => {
-        const node = record.get(key);
-        if (!node) return;
-
-        const id = node.identity.toString();
-        if (!nodes.find(n => n.id === id)) {
-          const label = node.labels[0] || 'Default';
-      const labelText = node.properties.title || node.properties.name || label;
-      // 💡 判断是否为中心岗位
-      const isCenterNode = (node.properties.title === job.value.title || node.properties.name === job.value.title);
-      const config = NODE_CONFIG[label] || NODE_CONFIG.Default;
-
-      // 💡 动态计算半径：保证球体能装下文字
-      const charCount = labelText.length;
-      const dynamicRadius = isCenterNode 
-        ? Math.max(20, charCount * 5.5) 
-        : Math.max(12, charCount * 4.5);
-
-      // 💡 确定层级 (Level)
-      let level = 3; 
-      if (isCenterNode) {
-        level = 1;
-      } else if (node.labels.includes('Ability')) { 
-        // 假设你的 Neo4j 中第二级节点带有 'Ability' 标签，如果没有，可以根据关系距离判断
-        level = 2;
-      }
-
-      // 💡 分配颜色
-      let finalColor;
-      if (level === 1) {
-        finalColor = LEVEL_COLORS[1];
-      } else if (level === 2) {
-        finalColor = LEVEL_COLORS[2];
-      } else {
-        // 第三层：根据 ID 取模随机分配彩色
-        finalColor = THIRD_LEVEL_COLORS[parseInt(id) % THIRD_LEVEL_COLORS.length];
-      }
-
-      // ✅ 确保这里只有一个干净的 nodes.push，没有重复的 fx/fy
-      nodes.push({
-        id: id,
-        name: labelText,
-        color: finalColor,
-        val: dynamicRadius, 
-        level: level,
-        fx: null,
-        fy: null
-          });
-        }
-      });
-
-      // 解析关系连线（保持不变）
-      const rel = record.get('r');
-      if (rel) {
-        if (Array.isArray(rel)) {
-          rel.forEach(r => links.push({ source: r.start.toString(), target: r.end.toString() }));
-        } else {
-          links.push({ source: rel.start.toString(), target: rel.end.toString() });
-        }
-      }
-    });
-
-    if (nodes.length > 0) {
-      graphInstance.graphData({ nodes, links });
-      
-      // 💡 视觉聚焦：在数据加载后强制相机对焦
-      setTimeout(() => {
-        graphInstance.centerAt(0, 0, 500); // 移动到原点
-        graphInstance.zoom(0.5, 500);        // 放大到 3 倍，解决“太小”的问题
-      }, 500);
-    } else {
-      console.warn("未查找到数据，查询词为:", job.value.title);
-    }
-
-    session.close();
+    const nodes = mockGraphData.nodes.map(n => {
+      let level = 3
+      if (n.label === 'Job') level = 1
+      else if (n.label === 'Skill') level = 2
+      let finalColor
+      if (level === 1) finalColor = LEVEL_COLORS[1]
+      else if (level === 2) finalColor = LEVEL_COLORS[2]
+      else finalColor = THIRD_LEVEL_COLORS[n.id.charCodeAt(n.id.length - 1) % THIRD_LEVEL_COLORS.length]
+      return { id: n.id, name: n.name, color: finalColor, val: n.val, level, fx: null, fy: null }
+    })
+    graphInstance.graphData({ nodes, links: mockGraphData.links.map(l => ({ source: l.source, target: l.target })) })
+    setTimeout(() => { graphInstance.centerAt(0, 0, 500); graphInstance.zoom(0.5, 500) }, 500)
+    return
   } catch (err) {
-    console.error('Neo4j 连通或查询失败:', err);
+    console.warn('Graph 数据加载失败:', err)
   }
 };
 

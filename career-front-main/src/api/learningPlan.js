@@ -2,7 +2,7 @@ import api from './client'
 
 export const learningPlanApi = {
   generate(data) {
-    return api.post('/learning-plan', data, { timeout: 120000 })
+    return api.post('/learning-plan/generate', data, { timeout: 120000 })
   },
   polish(data) {
     return api.post('/learning-plan/polish', data)

@@ -86,13 +86,10 @@ services:
       - .env
 
   frontend:
-    image: nginx:latest
+    build: ../career-front-main
     container_name: career-frontend
     ports:
       - "8080:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ../career-front-main/dist:/usr/share/nginx/html
     depends_on:
       - backend
     networks:

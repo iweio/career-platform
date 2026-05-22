@@ -8,7 +8,6 @@
           :prefix-icon="Search"
           size="large"
           class="custom-search"
-          @input="handleSearch" 
         />
         <el-button type="primary" size="large" class="search-btn" @click="handleSearch">搜索</el-button>
       </div>
@@ -34,7 +33,7 @@
 
     <main class="main-content">
       <section class="job-list">
-        <div v-if="filteredJobs.length === 0" class="empty-state">
+        <div v-if="displayedJobs.length === 0" class="empty-state">
           <el-empty description="未找到相关职位" />
         </div>
 
@@ -140,77 +139,75 @@ const selectedOptions = ref([])
 const selectedTags = ref([])
 const hoveredJob = ref(null)
 const allJobs = ref([])
+const currentPage = ref(1)
+const totalJobs = ref(0)
+const pageSize = 10
 
-const loadJobs = async () => {
+const loadJobs = async (reset = false) => {
+  if (reset) {
+    currentPage.value = 1
+    allJobs.value = []
+  }
+
   try {
-    const params = {}
-    if (searchQuery.value) params.q = searchQuery.value
+    const params = { page: currentPage.value, page_size: pageSize }
+    if (searchQuery.value) params.keyword = searchQuery.value
     selectedTags.value.forEach((tag) => {
-      params[tag.type] = tag.value
+      if (tag.type === 'city') params.city = tag.value
+      if (tag.type === 'industry') params.industry = tag.value
     })
-    const { data } = await jobsApi.search(searchQuery.value || '', params)
-    allJobs.value = (data.data?.results || []).map((item, index) => ({
-      ...item,
-      id: item.id || index + 1,
-      title: item.job_title || item.title,
-      company: item.company_name || item.company,
-      salary: item.salary_range || item.salary || '面议',
-      scale: item.company_scale || '--',
-      city: item.city || '--',
-      tags: item.industry ? item.industry.split(',').slice(0, 2) : [],
-      description: item.job_description || item.description,
-    }))
+
+    const { data } = await jobsApi.list(params)
+    if (data.success && data.data) {
+      const newJobs = (data.data.jobs || []).map((item) => ({
+        id: item.id,
+        title: item.job_title || item.title,
+        company: item.company,
+        salary: item.salary_range || item.salary || '面议',
+        scale: item.company_scale || '--',
+        city: item.city || '--',
+        tags: item.industry ? item.industry.split(',').slice(0, 2) : [],
+        description: item.job_description || item.description,
+        time: item.publish_date || '',
+      }))
+
+      if (reset) {
+        allJobs.value = newJobs
+      } else {
+        allJobs.value.push(...newJobs)
+      }
+      totalJobs.value = data.data.total || 0
+    }
   } catch {
     allJobs.value = []
   }
 }
 
-onMounted(() => {
-  loadJobs()
+onMounted(async () => {
+  await loadJobs(true)
 })
 
 // --- 🌟 无限滚动逻辑控制 ---
 const loading = ref(false)
-const count = ref(6) // 初始显示的条数
-const step = 4      // 每次滚动增加的条数
 
-// 基础过滤后的全量列表
-const filteredJobs = computed(() => {
-  // 即使 allJobs 还没加载出来，也返回一个空数组，防止报错
-  if (!Array.isArray(allJobs.value)) return []
-  
-  if (!searchQuery.value) return allJobs.value
-  
-  return allJobs.value.filter(j => 
-    // 统一使用映射后的 title 和 company
-    (j.title && j.title.includes(searchQuery.value)) || 
-    (j.company && j.company.includes(searchQuery.value))
-  )
-})
+const displayedJobs = computed(() => allJobs.value)
 
-// 真正显示在页面上的部分数据
-const displayedJobs = computed(() => {
-  return filteredJobs.value.slice(0, count.value)
-})
-
-const noMore = computed(() => count.value >= filteredJobs.value.length)
+const noMore = computed(() => allJobs.value.length >= totalJobs.value)
 const disabled = computed(() => loading.value || noMore.value)
 
-const loadMore = () => {
+const loadMore = async () => {
   if (disabled.value) return
   loading.value = true
-  
-  // 模拟网络请求延迟
-  setTimeout(() => {
-    count.value += step
-    loading.value = false
-  }, 800)
+
+  currentPage.value++
+  await loadJobs(false)
+  loading.value = false
 }
 
 const handleSearch = () => {
-  count.value = 6
-  loadJobs()
+  loadJobs(true)
 }
+
 
 // --- 其他功能函数 ---
 const openFilterDialog = (type) => {
@@ -226,7 +223,7 @@ const confirmSelection = () => {
     label: filterOptions[activeFilterType.value].find(o => o.value === val).label
   }))
   selectedTags.value.push(...newTags)
-  count.value = 6 // 筛选时重置加载数量
+  loadJobs(true)
   dialogVisible.value = false
 }
 

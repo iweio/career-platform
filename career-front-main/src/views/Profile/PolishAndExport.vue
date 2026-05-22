@@ -108,13 +108,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue' // 添加 onMounted
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElNotification } from 'element-plus'
-import { 
-  MagicStick, EditPen, Download, Promotion, 
-  Checked, Clock, InfoFilled, RefreshLeft, QuestionFilled 
+import {
+  MagicStick, EditPen, Download, Promotion,
+  Checked, Clock, InfoFilled, RefreshLeft, QuestionFilled
 } from '@element-plus/icons-vue'
-import html2pdf from 'html2pdf.js';
+import html2pdf from 'html2pdf.js'
+import { learningPlanApi } from '@/api/learningPlan'
 
 const props = defineProps({
   reportData: {
@@ -149,17 +150,19 @@ initialContent: `职业进阶学习计划：Java 高级架构师之路
 const pageLoading = ref(true) // 初始状态为加载中
 const reportContent = ref('') // 先设为空，加载完再赋值
 
-onMounted(() => {
-  // 模拟报告生成的加载时间，例如 1.2 秒
-  setTimeout(() => {
+onMounted(async () => {
+  try {
+    const { data } = await learningPlanApi.exportPlan({})
+    if (data.success && data.data?.export_text) {
+      reportContent.value = data.data.export_text
+    } else {
+      reportContent.value = props.reportData.initialContent
+    }
+  } catch {
     reportContent.value = props.reportData.initialContent
-    pageLoading.value = false
-    ElMessage({
-      message: '职业规划报告已生成',
-      type: 'success',
-      plain: true,
-    })
-  }, 3000)
+  }
+  pageLoading.value = false
+  ElMessage({ message: '职业规划报告已加载', type: 'success', plain: true })
 })
 
 // 状态管理
@@ -175,100 +178,35 @@ const lastUpdateTime = ref(new Date().toLocaleTimeString())
 // 历史记录数据
 const polishHistory = ref([])
 
-// 逻辑：执行润色并存入历史
-const handleAIPolish = () => {
+const handleAIPolish = async () => {
   if (!polishNote.value) return ElMessage.warning('请输入润色要求')
   polishing.value = true
-  
-  setTimeout(() => {
-    // 1. 存档当前内容
-    polishHistory.value.unshift({
-      note: polishNote.value,
-      content: reportContent.value,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: 'ai'
-    })
 
-    // 2. 模拟覆盖
-reportContent.value = `第1阶段: Java核心技术深化与架构基础
-⏰ 时间范围: 2个月
+  try {
+    const { data } = await learningPlanApi.polish({ feedback: polishNote.value })
+    if (data.success && data.data?.learning_plan) {
+      const phases = data.data.learning_plan.phases || []
+      const newContent = phases.map((p, i) =>
+        `第${i + 1}阶段: ${p.phase_name || ''}\n⏰ 时间范围: ${p.duration || ''}\n\n🎯 核心目标: ${(p.goals || []).join('，')}\n\n📚 学习内容:\n${(p.content || []).join('\n')}\n\n📖 推荐资源:\n${(p.resources || []).join('\n')}`
+      ).join('\n\n')
 
-🎯 核心目标: 精通Java并发与JVM调优，掌握Spring Cloud微服务核心组件与分布式理论。
-
-📚 学习内容:
-Java并发编程与JVM调优
-Spring Boot/Cloud微服务架构
-分布式系统理论与消息中间件
-
-📖 推荐资源:
-《Java并发编程的艺术》
-《深入理解Java虚拟机》
-极客时间相关课程
-Spring Cloud Alibaba官方文档
-简易电商微服务实践项目
-
-第2阶段: 高并发系统与云原生
-⏰ 时间范围: 2个月
-
-🎯 核心目标: 掌握数据库与缓存高级优化，熟练使用Docker/Kubernetes进行云原生部署与运维。
-
-📚 学习内容:
-MySQL优化与Redis深度应用
-Docker与Kubernetes容器化编排
-系统监控(如Prometheus/Grafana)与设计方法论
-
-📖 推荐资源:
-《高性能MySQL》
-《Redis设计与实现》
-极客时间《Kubernetes实战》
-云平台动手实验
-研究优秀开源项目架构
-
-第3阶段: 架构设计与技术视野
-⏰ 时间范围: 1个月
-
-🎯 核心目标: 理解领域驱动设计(DDD)与整洁架构，跟踪技术趋势并开始建立技术影响力。
-
-📚 学习内容:
-领域驱动设计(DDD)核心思想
-整洁/六边形架构
-代码重构与设计模式
-前沿技术趋势跟踪
-
-📖 推荐资源:
-《领域驱动设计》
-Martin Fowler博客
-参与技术社区
-用DDD思想重构一个项目
-
-第4阶段: 综合实践与职业发展
-⏰ 时间范围: 持续进行
-
-🎯 核心目标: 通过实战项目整合技术栈，提升团队协作、技术方案设计与评审等软技能。
-
-📚 学习内容:
-主导或深度参与复杂全栈项目
-技术方案设计与评审
-项目管理与跨团队沟通
-技术面试与招聘知识
-
-📖 推荐资源:
-主动承担复杂工作或发起开源项目
-《代码大全》、《人月神话》
-进行技术分享
-模拟方案评审与面试`;
-    
-    polishing.value = false;
-    polishNote.value = '';
-    lastUpdateTime.value = new Date().toLocaleTimeString();
-    
-    ElNotification({
-      title: '润色完成',
-      message: '旧版本已存入历史，可随时切换回滚',
-      type: 'success',
-      position: 'bottom-right'
-    });
-  }, 1000)
+      polishHistory.value.unshift({
+        note: polishNote.value,
+        content: reportContent.value,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: 'ai'
+      })
+      reportContent.value = newContent || data.data.export_text || reportContent.value
+      lastUpdateTime.value = new Date().toLocaleTimeString()
+      ElNotification({ title: '润色完成', message: '旧版本已存入历史，可随时切换回滚', type: 'success', position: 'bottom-right' })
+    } else {
+      ElMessage.error(data.error || '润色失败')
+    }
+  } catch {
+    ElMessage.error('润色服务暂不可用')
+  }
+  polishing.value = false
+  polishNote.value = ''
 }
 
 // 逻辑：还原版本（含双向备份）

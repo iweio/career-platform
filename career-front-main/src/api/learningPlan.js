@@ -13,7 +13,16 @@ export const learningPlanApi = {
   adjust(data) {
     return api.post('/learning-plan/adjust', data)
   },
-  export(data) {
+  exportPlan(data) {
     return api.post('/learning-plan/export', data)
+  },
+  getTasks() {
+    return api.get('/learning-plan/tasks')
+  },
+  updateTask(taskId, status) {
+    return api.put(`/learning-plan/tasks/${taskId}`, { status })
+  },
+  completeTask(taskId) {
+    return api.post(`/learning-plan/tasks/${taskId}/complete`)
   },
 }

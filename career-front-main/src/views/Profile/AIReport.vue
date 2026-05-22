@@ -219,99 +219,44 @@ const loadMapData = async () => {
 };
 
 // ==================== 2. 数据获取（API优先，失败回退Mock） ====================
-const MOCK_SCORE = 89.62
-const MOCK_SKILLS = [
-  { name: '专业技能', score: 90, comment: '精通Java/Python等开发技术。' },
-  { name: '创新能力', score: 92.5, comment: '主导大创项目，运用知识图谱等技术。' },
-  { name: '学习能力', score: 96.5, comment: 'GPA 3.7/4.0，专业排名前10%。' },
-  { name: '实习能力', score: 95, comment: '腾讯实习，参与全流程开发。' },
-  { name: '抗压能力', score: 90, comment: '能应对项目攻坚、多任务并行。' },
-  { name: '沟通能力', score: 90, comment: '优秀跨部门协作与团队统筹。' },
-  { name: '证书', score: 72.5, comment: '持有计算机二级证书。' },
-]
-
 const fetchData = async () => {
-  // Try matching API first, fall back to mock
   try {
     const { data: m } = await matchingApi.match()
     if (m.success && m.data) {
-      overallScore.value = m.data.match_score || m.data.overallScore || MOCK_SCORE
-      aiSummary.value = m.data.summary || m.data.aiSummary || ''
-      skillDetails.value = m.data.dimension_scores || m.data.skillDetails || MOCK_SKILLS
+      overallScore.value = m.data.match_score || 0
+      aiSummary.value = m.data.summary || ''
+      skillDetails.value = m.data.dimension_scores || []
     }
-  } catch { /* use mocks set below */ }
+  } catch { /* use minimal mocks below */ }
 
   try {
     const { data: cp } = await careerPlanApi.generate()
     if (cp.success && cp.data) {
-      expectedCities.value = cp.data.expected_cities || cp.data.cities || MOCK_CITIES
-      salaryForecast.value = cp.data.salary_forecast || cp.data.trends || MOCK_SALARY
-      jobDemandTrend.value = cp.data.demand_trend || MOCK_DEMAND
+      expectedCities.value = cp.data.expected_cities || []
+      salaryForecast.value = cp.data.salary_forecast || []
+      jobDemandTrend.value = cp.data.demand_trend || []
     }
-  } catch { /* use mocks set below */ }
+  } catch { /* keep empty */ }
 
-  // ===== FALLBACK MOCK DATA =====
+  // ===== MINIMAL FALLBACKS =====
   if (!skillDetails.value.length) {
-      overallScore.value = 89.62
-      aiSummary.value = '分析结论：候选人展现出了极高的职业素养与技术潜力，综合匹配度优秀。在硬实力方面，凭借 GPA 3.7 (前10%) 的卓越学术表现及 腾讯实习 的全流程工程实践经验，候选人在学习能力与实习能力上显著超出岗位预期。特别是在 Java 开发领域，候选人不仅扎实掌握了核心算法，更具备多语言开发视野。在软实力维度，候选人主导的大创项目证明了其在复杂问题解决上的创新思维，且具备应对高压场景的心理素质与跨部门协作的沟通统筹能力。优化建议：目前主要的进阶空间在于“行业垂直认证”。虽然持有通用计算机证书，但建议针对性地补全 Java 专项认证（如 Oracle 认证） 或金融科技相关的行业证书，以消除在专项资质上的微弱差距，进一步巩固竞争优势。'
-skillDetails.value = [
-  {
-    name: '专业技能',
-    score: 90,
-    comment: "与目标公司要求差距：用户精通Java/Python等开发技术，扎实掌握数据结构与算法，与Java后端开发岗位要求高度匹配，且技能深度超出基础要求。；与行业普遍要求差距：用户精通Java/Python等开发技术，扎实掌握数据结构与算法，与岗位要求的'精通Java(JDK8+), 掌握Lambda'基本匹配。但岗位要求可能更聚焦于Java生态的深度，而用户展示了多语言能力，在Java特定领域的专注度上可能存在轻微差距。"
-  },
-  {
-    name: '创新能力',
-    score: 92.5,
-    comment: "与目标公司要求差距：用户主导过大创项目并运用知识图谱等技术，参加过创新创业大赛，展现出优秀的创新思维和实践能力，与需要解决复杂问题的开发岗位高度匹配。；与行业普遍要求差距：用户主导大创项目并运用知识图谱等技术实现创新方案，参加过创新创业大赛，成果显著。这完全匹配甚至可能超出岗位对'创新能力'的常规期望，表现出优秀的实践创新和问题解决能力。"
-  },
-  {
-    name: '学习能力',
-    score: 96.5,
-    comment: "与目标公司要求差距：GPA 3.7/4.0，专业排名前10%，且具备快速掌握新技术的能力，表明其学习能力极强，能迅速适应金融科技领域的技术迭代 and 业务需求。；与行业普遍要求差距：用户GPA 3.7/4.0，专业排名前10%，且自主学习能力强，能快速掌握新技术。这完全匹配并显著超出岗位对'学习能力'的要求，证明了其卓越的学术基础和持续学习潜力。"
-  },
-  {
-    name: '实习能力',
-    score: 95,
-    comment: "与目标公司要求差距：在腾讯的实习经历，参与企业软件开发全流程，积累了扎实的工程实践经验，与岗位要求的后端开发实战能力高度契合，且平台经验有加分。；与行业普遍要求差距：用户在腾讯实习，参与企业软件开发全流程，完成功能开发、测试优化，积累了扎实的工程实践经验。这与岗位要求的'实习能力'完全匹配，且实习平台和经历质量很高，是显著优势。"
-  },
-  {
-    name: '抗压能力',
-    score: 90,
-    comment: "与目标公司要求差距：能高效应对项目攻坚、多任务并行的高压场景，这与金融科技行业快节奏、高要求的工作环境非常匹配，无明显差距。；与行业普遍要求差距：用户能高效应对项目攻坚、多任务并行等高压场景，按时高质量完成目标。这与岗位要求的'抗压能力'完全匹配，且有腾讯实习经历作为有力佐证。"
-  },
-  {
-    name: '沟通能力',
-    score: 90,
-    comment: "与目标公司要求差距：具备优秀的跨部门协作与团队统筹能力，能高效推进项目落地，完全满足开发岗位所需的团队协作和沟通要求。；与行业普遍要求差距：用户具备优秀跨部门协作与团队统筹能力，能高效推进项目落地。这与岗位要求的'沟通能力'完全匹配，展现了在复杂项目环境中所需的协作和协调技能。"
-  },
-  {
-    name: '证书',
-    score: 72.5,
-    comment: "与目标公司要求差距：持有计算机二级等专业证书，符合技术岗位的基本证书要求，但与金融科技公司可能更看重的行业特定证书（如金融、安全相关）存在一定差距。；与行业普遍要求差距：用户持有计算机二级等专业证书，但岗位明确要求'Java相关认证'（如Oracle认证等）。计算机二级证书是通用证书，与Java专项认证存在明显差距，不完全符合岗位的针对性要求。"
-  }
-]
-      detailedAnalysis.value = ''
+    overallScore.value = 0
+    aiSummary.value = '请先前往个人中心完成简历分析，系统将自动生成 AI 诊断报告。'
+    skillDetails.value = [
+      { name: '专业技能', score: 0, comment: '待分析' },
+      { name: '创新能力', score: 0, comment: '待分析' },
+      { name: '学习能力', score: 0, comment: '待分析' },
+      { name: '实习能力', score: 0, comment: '待分析' },
+      { name: '抗压能力', score: 0, comment: '待分析' },
+      { name: '沟通能力', score: 0, comment: '待分析' },
+      { name: '证书', score: 0, comment: '待分析' },
+    ]
   }
 
   if (!salaryForecast.value.length) {
-    expectedCities.value = [
-      { name: '北京', value: 100 }, { name: '深圳', value: 95 }, { name: '杭州', value: 85 },
-    ]
-    salaryForecast.value = [
-      { year: 2026, value: 75, reason: '入门级，核心工程能力建设' },
-      { year: 2027, value: 72, reason: '微服务架构/技术选型 + 核心骨干' },
-      { year: 2028, value: 70, reason: '独立负责系统架构 + 技术栈广度拓展' },
-      { year: 2029, value: 68, reason: '晋升技术专家/团队Leader级别' },
-      { year: 2030, value: 65, reason: '架构师/技术总监，行业影响力' },
-    ]
-    jobDemandTrend.value = [
-      { year: 2026, value: 62.2, reason: '市场平稳，基础岗位需求稳定' },
-      { year: 2027, value: 65.5, reason: '行业数字化/国产化替代加速' },
-      { year: 2028, value: 68.88, reason: 'AI 深度应用落地 + 人才缺口扩大' },
-      { year: 2029, value: 72.65, reason: '市场回归理性，高端人才依然紧缺' },
-      { year: 2030, value: 75.31, reason: '复合型、专家型人才持续热门' },
-    ]
+    expectedCities.value = [{ name: '待分析', value: 0 }]
+    salaryForecast.value = [{ year: new Date().getFullYear(), value: 0, reason: '请先完成简历分析' }]
+    jobDemandTrend.value = [{ year: new Date().getFullYear(), value: 0, reason: '请先完成简历分析' }]
   }
 
   mapLoaded.value = true

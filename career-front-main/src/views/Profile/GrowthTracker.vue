@@ -160,9 +160,10 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, reactive } from 'vue'
-import { MagicStick, TrendCharts, Compass, Checked, Promotion, Close } from '@element-plus/icons-vue'
+import { MagicStick, TrendCharts, Compass, Checked, Promotion, Close, Timer, StarFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
+import { learningPlanApi } from '@/api/learningPlan'
 
 // --- 拖拽核心逻辑 ---
 const isDragging = ref(false)
@@ -222,13 +223,7 @@ const consecutiveDays = ref(12)
 const radarChartRef = ref(null)
 let radarInstance = null
 
-const todoList = ref([
-  { id: 1, text: 'Java并发编程基础回顾与JUC包入门', completed: false, isAI: true },
-  { id: 2, text: '深入线程池原理与并发容器', completed: false, isAI: true },
-  { id: 3, text: '锁优化与AQS框架解析', completed: false, isAI: true },
-  { id: 4, text: 'JVM内存模型与垃圾回收基础', completed: false, isAI: true },
-  { id: 5, text: '垃圾回收器与内存分配策略', completed: false, isAI: true }
-])
+const todoList = ref([])
 
 // 🌟 初始化雷达图逻辑保留
 const initRadarChart = () => {
@@ -271,11 +266,24 @@ const initRadarChart = () => {
 
 const handleResize = () => radarInstance?.resize()
 
-// 🌟 原有生命周期逻辑保留
 onMounted(async () => {
-  setTimeout(() => {
-    aiAnalysis.value = "检测到你近期在 Vue3 调试上花费了较多时间，已自动为你匹配了相关的性能优化任务。"
-  }, 1000)
+  try {
+    const { data: tasksData } = await learningPlanApi.getTasks()
+    if (tasksData.success && tasksData.data) {
+      todoList.value = (tasksData.data || []).map(t => ({
+        id: t.task_id || t.id,
+        text: t.title,
+        desc: t.description,
+        time: t.duration,
+        difficulty: t.difficulty || '中等',
+        completed: t.status === 'completed',
+        isAI: true,
+      }))
+      aiAnalysis.value = `已加载 ${todoList.value.length} 项学习任务，完成率 ${todoList.value.filter(t => t.completed).length}/${todoList.value.length}`
+    }
+  } catch {
+    aiAnalysis.value = '学习任务加载中，请稍后刷新'
+  }
 
   await nextTick()
   setTimeout(() => {
@@ -298,17 +306,23 @@ const toggleCoaching = () => {
   isCoachingOpen.value = !isCoachingOpen.value;
 }
 
-const sendCoachMessage = () => {
-  if (!coachInputValue.value.trim()) return;
-  
-  isCoachingLoading.value = true;
-  // 模拟发送和 Agent 思考中
-  setTimeout(() => {
-    ElMessage.success({ message: '提交成功！Agent 正在评估你的需求...', offset: 100 });
-    coachInputValue.value = '';
-    isCoachingLoading.value = false;
-    isCoachingOpen.value = false;
-  }, 1500)
+const sendCoachMessage = async () => {
+  if (!coachInputValue.value.trim()) return
+
+  isCoachingLoading.value = true
+  try {
+    const { data } = await learningPlanApi.polish({ feedback: coachInputValue.value })
+    if (data.success) {
+      ElMessage.success('辅导指令已提交，Agent 正在优化中')
+      isCoachingOpen.value = false
+    } else {
+      ElMessage.error(data.error || '提交失败')
+    }
+  } catch {
+    ElMessage.error('辅导服务暂不可用')
+  }
+  coachInputValue.value = ''
+  isCoachingLoading.value = false
 }
 </script>
 

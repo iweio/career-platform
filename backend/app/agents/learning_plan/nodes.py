@@ -13,10 +13,14 @@ from app.agents.learning_plan.prompts import SELF_REFLECT_PROMPT
 from app.rag.retrievers import learning_retriever
 
 
-async def detect_action(state: LearningPlanState) -> str:
+async def detect_action(state: LearningPlanState) -> Dict:
     action = state.get("action", "generate")
     valid = {"generate", "polish", "daily_tasks", "adjust", "export"}
-    return action if action in valid else "generate"
+    return {"action": action if action in valid else "generate"}
+
+
+def route_by_action(state: LearningPlanState) -> str:
+    return state.get("action", "generate")
 
 
 async def load_profile_and_job(state: LearningPlanState) -> Dict:

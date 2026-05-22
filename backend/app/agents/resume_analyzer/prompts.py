@@ -74,20 +74,20 @@ ANALYZE_PROMPT = """你是一个职业数据分析师。请基于用户的简历
 7. 实习/项目经验 — 实战经验的丰富程度
 
 输出JSON格式：
-{
+{{
   "completeness": 0-100,
   "radar_data": [
-    {"dimension": "专业技能", "score": 85, "max": 100},
+    {{"dimension": "专业技能", "score": 85, "max": 100}},
     ...
   ],
-  "competitiveness": {
+  "competitiveness": {{
     "overall": 0-100,
     "strengths": ["优势1", "优势2"],
     "weaknesses": ["不足1", "不足2"],
     "percentile": "在所有用户中大约处于前X%"
-  },
+  }},
   "skill_keywords": ["关键词1", "关键词2", ...]
-}"""
+}}"""
 
 GENERATE_REPORT_PROMPT = """你是一个职业规划顾问。请基于以下分析数据生成一份职业发展分析报告：
 

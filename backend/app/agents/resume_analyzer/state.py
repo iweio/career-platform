@@ -15,6 +15,7 @@ class ResumeAnalyzerState(TypedDict, total=False):
     user_profile: dict
     completeness_flags: dict
     missing_fields: list[str]
+    next_action: str
     next_question: str
     supplement_text: str
     supplement_count: int

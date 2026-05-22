@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional, List
@@ -5,7 +6,17 @@ from app.agents.registry import get_agent
 from app.agents.learning_plan import tools
 from app.middleware.auth import get_current_user
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+async def _run_lp_agent(input_data: dict) -> dict:
+    try:
+        agent = get_agent("learning_plan")
+        return await agent.run(input_data)
+    except Exception:
+        logger.exception("learning_plan agent failed")
+        return {"error": "Agent execution failed"}
 
 
 class GenerateRequest(BaseModel):
@@ -33,49 +44,54 @@ class TaskUpdateRequest(BaseModel):
 
 @router.post("/generate")
 async def generate_plan(req: GenerateRequest, user: dict = Depends(get_current_user)):
-    agent = get_agent("learning_plan")
-    result = await agent.run({
+    result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "generate", "plan_type": req.plan_type,
     })
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
 
 @router.post("/polish")
 async def polish_plan(req: PolishRequest, user: dict = Depends(get_current_user)):
-    agent = get_agent("learning_plan")
-    result = await agent.run({
+    result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "polish", "user_feedback": req.feedback,
     })
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
 
 @router.post("/daily-tasks")
 async def generate_daily_tasks(req: DailyTasksRequest, user: dict = Depends(get_current_user)):
-    agent = get_agent("learning_plan")
-    result = await agent.run({
+    result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "daily_tasks", "phase_index": req.phase_index,
     })
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
 
 @router.post("/adjust")
 async def adjust_tasks(req: AdjustRequest, user: dict = Depends(get_current_user)):
-    agent = get_agent("learning_plan")
-    result = await agent.run({
+    result = await _run_lp_agent({
         "user_id": user["user_id"],
         "action": "adjust",
         "completed_task_ids": req.completed_tasks,
         "remaining_tasks": req.remaining_tasks,
     })
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
 
 @router.post("/export")
 async def export_plan(user: dict = Depends(get_current_user)):
-    agent = get_agent("learning_plan")
-    result = await agent.run({
+    result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "export",
     })
+    if "error" in result:
+        return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
 

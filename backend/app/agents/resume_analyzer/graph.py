@@ -52,7 +52,7 @@ class ResumeAnalyzerAgent(AgentBase):
 
         builder.add_conditional_edges(
             "check_completeness",
-            nodes.check_completeness,
+            nodes.route_after_check,
             {
                 "generate_question": "generate_question",
                 "analyze": "analyze_profile",

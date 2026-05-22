@@ -133,12 +133,16 @@ def extract_params(state: ResumeAnalyzerState) -> Dict:
     }
 
 
-def check_completeness(state: ResumeAnalyzerState) -> str:
+def check_completeness(state: ResumeAnalyzerState) -> Dict:
     missing = state.get("missing_fields", [])
     count = state.get("supplement_count", 0)
     if missing and count < 3:
-        return "generate_question"
-    return "analyze"
+        return {"next_action": "generate_question"}
+    return {"next_action": "analyze"}
+
+
+def route_after_check(state: ResumeAnalyzerState) -> str:
+    return state.get("next_action", "analyze")
 
 
 def generate_question(state: ResumeAnalyzerState) -> Dict:

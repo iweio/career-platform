@@ -41,13 +41,14 @@ class LearningPlanAgent(AgentBase):
         builder.add_node("polish_plan", nodes.polish_plan)
         builder.add_node("adjust_tasks", nodes.adjust_tasks)
         builder.add_node("export_plan", nodes.export_plan)
+        builder.add_node("detect_action", nodes.detect_action)
 
         builder.set_entry_point("detect_action")
 
         # Route based on action
         builder.add_conditional_edges(
             "detect_action",
-            nodes.detect_action,
+            nodes.route_by_action,
             {
                 "generate": "load_profile_and_job",
                 "daily_tasks": "generate_daily_tasks",

@@ -894,7 +894,6 @@ const selectCategory = (categoryId) => {
   router.push(`/jobs?category=${categoryId}`)
 }
 
-// 处理登录
 const handleLogin = async () => {
   if (!loginForm.value.username || !loginForm.value.password) {
     ElMessage.warning('请输入用户名和密码')
@@ -903,33 +902,28 @@ const handleLogin = async () => {
 
   loginLoading.value = true
 
-  // 模拟异步请求
-  await new Promise(resolve => setTimeout(resolve, 1000))
-
-  loginLoading.value = false
-  isLoggedIn.value = true
-
-  currentUser.value = {
-    name: loginForm.value.username,
-    avatar: `https://ui-avatars.com/api/?name=${loginForm.value.username}&background=667eea&color=fff`,
-    tags: ['#前端', '#高薪', '#远程', '#AI', '#创新', '#成长']
+  try {
+    const data = await auth.login(loginForm.value.username, loginForm.value.password)
+    isLoggedIn.value = true
+    currentUser.value = {
+      name: data.username || loginForm.value.username,
+      avatar: `https://ui-avatars.com/api/?name=${data.username || loginForm.value.username}&background=667eea&color=fff`,
+      tags: ['#前端', '#高薪', '#远程', '#AI', '#创新', '#成长']
+    }
+    ElMessage.success('登录成功')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.error || '登录失败，请检查用户名和密码')
+  } finally {
+    loginLoading.value = false
   }
-
-  ElMessage.success('登录成功')
 }
 
 // 处理退出
-const handleLogout = () => {
+const handleLogout = async () => {
+  await auth.logout()
   isLoggedIn.value = false
-  loginForm.value = {
-    username: '',
-    password: ''
-  }
-  currentUser.value = {
-    name: '',
-    avatar: '',
-    tags: []
-  }
+  loginForm.value = { username: '', password: '' }
+  currentUser.value = { name: '', avatar: '', tags: [] }
   ElMessage.success('已退出登录')
 }
 

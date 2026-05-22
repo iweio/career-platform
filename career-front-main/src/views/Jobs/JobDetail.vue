@@ -88,10 +88,13 @@ import { ArrowLeft, Star, StarFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { jobsApi } from '@/api/jobs'
 import { favoritesApi } from '@/api/favorites'
+import { useAuthStore } from '@/stores/auth'
 import ForceGraph from 'force-graph'
 import * as d3 from 'd3'
 import PromotionGraph from '@/components/PromotionGraph.vue'
 import { mockGraphData } from '@/assets/mockGraph.js'
+
+const auth = useAuthStore()
 
 // --- 1. 引用和状态 ---
 const graphContainer = ref(null)
@@ -247,11 +250,13 @@ onMounted(async () => {
     }
   } catch { /* keep mock fallback */ }
 
-  try {
-    const { data: favData } = await favoritesApi.list()
-    const favIds = (favData.data || favData.favorites || []).map((f) => f.job_id)
-    isFavorited.value = favIds.includes(targetId)
-  } catch { /* ignore */ }
+  if (auth.isLoggedIn) {
+    try {
+      const { data: favData } = await favoritesApi.list()
+      const favIds = (favData.data || favData.favorites || []).map((f) => f.job_id)
+      isFavorited.value = favIds.includes(targetId)
+    } catch { /* ignore */ }
+  }
 
   loading.value = false
   await nextTick()

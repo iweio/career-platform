@@ -249,7 +249,7 @@
 </div>
     </div>
 
-    <el-button type="primary" class="full-path-link" round @click="$router.push('/growth-tracking')">
+    <el-button type="primary" class="full-path-link" round @click="$router.push('/profile/growth')">
       查看完整全周期规划 <el-icon><ArrowRight /></el-icon>
     </el-button>
   </el-card>

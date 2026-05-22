@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy import event
 from app.config import settings
 
 DATABASE_URL = (
@@ -14,6 +15,16 @@ engine = create_async_engine(
     pool_recycle=3600,
     echo=False,
 )
+
+
+@event.listens_for(engine.sync_engine, "connect")
+def set_utf8mb4(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("SET NAMES utf8mb4")
+    cursor.execute("SET CHARACTER SET utf8mb4")
+    cursor.execute("SET character_set_connection=utf8mb4")
+    cursor.close()
+
 
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 

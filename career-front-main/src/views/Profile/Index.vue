@@ -208,7 +208,8 @@
 </template>
 
 <script setup>
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
@@ -241,7 +242,27 @@ const removeFile = () => {
   attachedFile.value = null
 }
 
-const activeTab = ref('info')
+const router = useRouter()
+const route = useRoute()
+
+const TAB_ROUTE_MAP = {
+  'info': '/profile/info',
+  'report': '/profile/report',
+  'growth': '/profile/growth',
+  'report-export': '/profile/report-export',
+  'favorite': '/profile/favorites',
+}
+
+const PATH_TAB_MAP = {
+  '/profile': 'info',
+  '/profile/info': 'info',
+  '/profile/report': 'report',
+  '/profile/growth': 'growth',
+  '/profile/report-export': 'report-export',
+  '/profile/favorites': 'favorite',
+}
+
+const activeTab = ref(PATH_TAB_MAP[route.path] || 'info')
 const isInfoFilled = ref(false)
 const loading = ref(false)
 const inputValue = ref('')
@@ -269,10 +290,22 @@ const chatMessages = ref([
   { id: 1, role: 'assistant', content: '您好！我是您的AI职业向导。您可以直接粘贴简历内容或上传文件。' }
 ])
 
-// 🌟 修复核心：确保菜单选择逻辑能干净地切换 activeTab
+// 确保菜单选择能切换 activeTab 并更新 URL
 const handleMenuSelect = (index) => {
   activeTab.value = index
+  const targetPath = TAB_ROUTE_MAP[index] || '/profile/info'
+  if (route.path !== targetPath) {
+    router.push(targetPath)
+  }
 }
+
+// 响应浏览器前进/后退或直接 URL 访问
+watch(() => route.path, (path) => {
+  const tab = PATH_TAB_MAP[path]
+  if (tab && tab !== activeTab.value) {
+    activeTab.value = tab
+  }
+})
 
 const handleSend = async () => {
   if (!inputValue.value.trim() && !attachedFile.value) {

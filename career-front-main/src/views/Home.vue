@@ -887,8 +887,6 @@ const searchByTag = (tag) => {
 // 选择分类
 const selectCategory = (categoryId) => {
   currentCategory.value = categoryId
-  const category = categories.value.find(c => c.id === categoryId)
-  console.log('选择分类:', category?.name)
   // 预留跳转或筛选逻辑
   router.push(`/jobs?category=${categoryId}`)
 }

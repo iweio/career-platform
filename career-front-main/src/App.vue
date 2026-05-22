@@ -46,15 +46,44 @@
       </div>
     </nav>
 
+    <!-- 登录/注册弹窗 -->
+    <el-dialog v-model="authDialogVisible" :title="authMode === 'login' ? '登录' : '注册'" width="400px" center>
+      <el-form :model="authForm" label-width="0" @submit.prevent>
+        <el-form-item>
+          <el-input v-model="authForm.username" placeholder="用户名" size="large" />
+        </el-form-item>
+        <el-form-item v-if="authMode === 'register'">
+          <el-input v-model="authForm.email" placeholder="邮箱" size="large" />
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="authForm.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="doAuth" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="auth-dialog-footer">
+          <el-button type="primary" size="large" :loading="authLoading" @click="doAuth" style="width:100%">
+            {{ authMode === 'login' ? '登录' : '注册' }}
+          </el-button>
+          <p class="auth-switch">
+            {{ authMode === 'login' ? '还没有账号？' : '已有账号？' }}
+            <el-link type="primary" @click="authMode = authMode === 'login' ? 'register' : 'login'">
+              {{ authMode === 'login' ? '立即注册' : '去登录' }}
+            </el-link>
+          </p>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 路由视图 -->
     <router-view />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -62,8 +91,45 @@ const auth = useAuthStore()
 const isLoggedIn = computed(() => auth.isLoggedIn)
 const userData = computed(() => auth.user || { name: '用户' })
 
+const authDialogVisible = ref(false)
+const authMode = ref('login')
+const authLoading = ref(false)
+const authForm = reactive({ username: '', email: '', password: '' })
+
 const handleLogin = () => {
-  router.push('/profile/info')
+  authForm.username = ''
+  authForm.email = ''
+  authForm.password = ''
+  authMode.value = 'login'
+  authDialogVisible.value = true
+}
+
+const doAuth = async () => {
+  if (!authForm.username || !authForm.password) {
+    ElMessage.warning('请填写用户名和密码')
+    return
+  }
+  if (authMode.value === 'register' && !authForm.email) {
+    ElMessage.warning('请填写邮箱')
+    return
+  }
+  authLoading.value = true
+  try {
+    if (authMode.value === 'register') {
+      await auth.register(authForm.username, authForm.email, authForm.password)
+      ElMessage.success('注册成功，请登录')
+      authMode.value = 'login'
+    } else {
+      await auth.login(authForm.username, authForm.password)
+      ElMessage.success('登录成功')
+      authDialogVisible.value = false
+    }
+  } catch (e) {
+    const msg = e.response?.data?.detail || e.response?.data?.error || '操作失败'
+    ElMessage.error(msg)
+  } finally {
+    authLoading.value = false
+  }
 }
 
 const handleLogout = async () => {
@@ -265,5 +331,14 @@ background: linear-gradient(
 .logout-item {
   color: #f56c6c !important;
 }
+}
+
+.auth-dialog-footer {
+  .auth-switch {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #909399;
+  }
 }
 </style>

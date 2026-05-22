@@ -16,10 +16,15 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('refresh_token', refresh)
   }
 
+  async function register(username, email, password) {
+    const { data } = await authApi.register({ username, email, password })
+    return data
+  }
+
   async function login(username, password) {
     const { data } = await authApi.login({ username, password })
     _saveTokens(data.access_token, data.refresh_token)
-    user.value = { id: data.user_id, username: data.username }
+    user.value = { id: data.user_id, name: data.username, username: data.username }
     return data
   }
 
@@ -35,5 +40,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.clear()
   }
 
-  return { user, accessToken, refreshToken, isLoggedIn, login, logout }
+  return { user, accessToken, refreshToken, isLoggedIn, register, login, logout }
 })

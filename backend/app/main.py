@@ -15,6 +15,12 @@ from app.api.v1 import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: delete legacy ONNX model cache (now using DashScope API)
+    import shutil, os
+    onnx_cache = os.path.expanduser("~/.cache/chroma/onnx_models")
+    if os.path.exists(onnx_cache):
+        shutil.rmtree(onnx_cache, ignore_errors=True)
+
     # Startup: init Redis pool
     await get_redis_pool()
 
@@ -34,17 +40,28 @@ async def lifespan(app: FastAPI):
 
 
 async def _ingest_rag_data():
-    """Background task: build vector indexes on startup."""
+    """Background task: clear old vectors and rebuild indexes on startup."""
+    # Clear old collections first — embedding model may have changed
+    from app.rag.vector_store import reset_collections
+    reset_collections()
+
     try:
         from app.rag.ingest_jobs import ingest_all_jobs
         await ingest_all_jobs()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[RAG] Job ingest skipped: {e}")
+
     try:
         from app.rag.ingest_learning import ingest_learning_resources
         await ingest_learning_resources()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[RAG] Learning ingest skipped: {e}")
+
+    try:
+        from app.rag.ingest_neo4j import ingest_neo4j_graph
+        await ingest_neo4j_graph()
+    except Exception as e:
+        print(f"[Neo4j] Graph ingest skipped: {e}")
 
 
 app = FastAPI(

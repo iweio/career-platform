@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict
+from typing import TypedDict
 
 
 class LearningPlanState(TypedDict, total=False):

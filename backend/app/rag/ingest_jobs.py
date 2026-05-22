@@ -1,57 +1,45 @@
-"""Ingest all jobs from MySQL into ChromaDB vector store.
+"""Ingest job categories into ChromaDB vector store.
 
 Called at system startup (FastAPI lifespan) to keep vector index in sync.
+Now indexes 10 big job categories (岗位族) instead of individual job postings.
 """
 from sqlalchemy import select
 from app.db.mysql import AsyncSessionLocal
-from app.models.job import Job
-from app.rag.embedding import get_embeddings
+from app.models.job_category import JobCategory
 from app.rag.vector_store import get_job_collection
 
 
 async def ingest_all_jobs():
-    """Read all jobs from MySQL and upsert into ChromaDB."""
-    embeddings = get_embeddings()
+    """Read all job categories from MySQL and upsert into ChromaDB (DashScope-embedded)."""
     collection = get_job_collection()
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(select(Job))
-        jobs = result.scalars().all()
+        result = await db.execute(select(JobCategory))
+        categories = result.scalars().all()
 
-    if not jobs:
+    if not categories:
+        print("[RAG] No job categories found — skipping ingest.")
         return
 
-    ids = [str(j.id) for j in jobs]
+    ids = [str(c.id) for c in categories]
     documents = []
     metadatas = []
 
-    for j in jobs:
-        text_parts = [j.job_title or "", j.job_description or "", j.requirements or ""]
-        documents.append("\n".join(text_parts))
+    for c in categories:
+        documents.append(c.description or c.name)
         metadatas.append({
-            "job_title": j.job_title or "",
-            "company": j.company or "",
-            "industry": j.industry or "",
-            "city": j.city or "",
-            "salary_range": j.salary_range or "",
+            "name": c.name or "",
+            "tag": c.tag or "",
+            "scarcity": c.insight_scarcity or "",
         })
 
-    collection.upsert(
-        ids=ids,
-        documents=documents,
-        metadatas=metadatas,
-    )
+    # DashScope batch limit: 10 per request
+    BATCH = 10
+    for i in range(0, len(ids), BATCH):
+        collection.upsert(
+            ids=ids[i:i + BATCH],
+            documents=documents[i:i + BATCH],
+            metadatas=metadatas[i:i + BATCH],
+        )
 
-    print(f"[RAG] Ingested {len(jobs)} jobs into ChromaDB.")
-
-
-async def ingest_single_job(job_id: int, job_title: str, job_description: str,
-                              requirements: str, **meta):
-    """Add or update a single job in the vector index."""
-    collection = get_job_collection()
-    text = f"{job_title}\n{job_description}\n{requirements}"
-    collection.upsert(
-        ids=[str(job_id)],
-        documents=[text],
-        metadatas=[{k: v or "" for k, v in meta.items()}],
-    )
+    print(f"[RAG] Ingested {len(categories)} job categories into ChromaDB (DashScope).")

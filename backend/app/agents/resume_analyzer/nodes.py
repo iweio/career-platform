@@ -196,3 +196,30 @@ def self_reflect(state: ResumeAnalyzerState) -> Dict:
     prompt = SELF_REFLECT_PROMPT.format(output=report)
     msg = llm.invoke([HumanMessage(content=prompt)])
     return {"report": msg.content}
+
+
+async def save_profile(state: ResumeAnalyzerState) -> Dict:
+    from sqlalchemy.dialects.mysql import insert as mysql_insert
+    from app.db.mysql import AsyncSessionLocal
+    from app.models.profile import UserProfile
+
+    uid = state.get("user_id", 0)
+    profile_data = state.get("user_profile", {})
+    if not uid or not profile_data:
+        return {}
+
+    async with AsyncSessionLocal() as db:
+        stmt = mysql_insert(UserProfile).values(
+            user_id=uid,
+            profile_data=profile_data,
+            status="active",
+        ).on_duplicate_key_update(
+            profile_data=profile_data,
+        )
+        await db.execute(stmt)
+        await db.commit()
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[resume_analyzer] Saved user profile for user %d", uid)
+    return {}

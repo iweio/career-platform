@@ -1,6 +1,7 @@
 """Database tools for career_planner agent — SQLAlchemy ORM."""
 
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from app.db.mysql import AsyncSessionLocal
 from app.models.matching import MatchingReport, PromotionTransition
 from app.models.career_plan import CareerPlan
@@ -51,14 +52,17 @@ async def save_career_plan(user_id: int, top_job: dict, match_score: float,
     }
 
     async with AsyncSessionLocal() as db:
-        plan = CareerPlan(
+        stmt = mysql_insert(CareerPlan).values(
             user_id=user_id,
             target_position=top_job.get("job_name", ""),
             target_company="",
             plan_data=plan_data,
             status="active",
+        ).on_duplicate_key_update(
+            target_position=top_job.get("job_name", ""),
+            plan_data=plan_data,
+            updated_at=func.now(),
         )
-        db.add(plan)
-        await db.flush()
+        result = await db.execute(stmt)
         await db.commit()
-    return plan.id
+        return result.lastrowid or 0

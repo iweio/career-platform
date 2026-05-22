@@ -19,7 +19,7 @@ async def list_jobs(
     db=Depends(get_db),
 ):
     if keyword:
-        results = job_retriever.search(keyword, top_k=page_size, industry=industry or None, city=city or None)
+        results = await job_retriever.search(keyword, top_k=page_size, industry=industry or None, city=city or None)
         return {
             "success": True,
             "data": {
@@ -40,8 +40,6 @@ async def list_jobs(
     if city:
         base = base.where(Job.city == city)
 
-    # total count
-    from sqlalchemy import func
     count_result = await db.execute(select(func.count()).select_from(base.subquery()))
     total = count_result.scalar() or 0
 
@@ -63,7 +61,7 @@ async def list_jobs(
 
 @router.get("/search")
 async def search_jobs(q: str = Query(""), top_k: int = Query(10)):
-    results = job_retriever.search(q, top_k=top_k)
+    results = await job_retriever.search(q, top_k=top_k)
     return {
         "success": True,
         "data": {
@@ -101,6 +99,10 @@ async def list_categories(db=Depends(get_db)):
         categories.append({
             "id": c.id, "name": c.name, "icon": c.icon,
             "tag": c.tag, "scarcity": c.insight_scarcity,
+            "description": c.description,
+            "core_skills": c.core_skills,
+            "promotion_path": c.promotion_path,
+            "transition_to": c.transition_to,
         })
     return {"success": True, "data": categories}
 

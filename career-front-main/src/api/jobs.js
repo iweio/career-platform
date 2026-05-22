@@ -7,9 +7,6 @@ export const jobsApi = {
   detail(id) {
     return api.get(`/jobs/${id}`)
   },
-  search(q, params = {}) {
-    return api.get('/jobs/search', { params: { q, ...params } })
-  },
   categories() {
     return api.get('/jobs/categories')
   },

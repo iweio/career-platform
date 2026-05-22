@@ -2,7 +2,7 @@
 
 LangGraph flow:
   load_user_profile -> retrieve_candidates (RAG) -> load_job_details
-  -> neo4j_enrich -> llm_match (parallel) -> rank_results -> save_report -> END
+  -> llm_match (parallel) -> rank_results -> save_report -> END
 """
 from typing import Dict, Any
 
@@ -32,7 +32,6 @@ class JobMatcherAgent(AgentBase):
         builder.add_node("load_user_profile", nodes.load_user_profile)
         builder.add_node("retrieve_candidates", nodes.retrieve_candidates)
         builder.add_node("load_job_details", nodes.load_job_details)
-        builder.add_node("neo4j_enrich", nodes.neo4j_enrich)
         builder.add_node("llm_match", nodes.llm_match)
         builder.add_node("rank_results", nodes.rank_results)
         builder.add_node("save_report", nodes.save_report)
@@ -41,8 +40,7 @@ class JobMatcherAgent(AgentBase):
         builder.set_entry_point("load_user_profile")
         builder.add_edge("load_user_profile", "retrieve_candidates")
         builder.add_edge("retrieve_candidates", "load_job_details")
-        builder.add_edge("load_job_details", "neo4j_enrich")
-        builder.add_edge("neo4j_enrich", "llm_match")
+        builder.add_edge("load_job_details", "llm_match")
         builder.add_edge("llm_match", "rank_results")
         builder.add_edge("rank_results", "save_report")
         builder.add_edge("save_report", "self_reflect")

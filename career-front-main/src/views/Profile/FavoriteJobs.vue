@@ -91,14 +91,7 @@ const goToDetail = (id) => {
   router.push({ name: 'JobDetail', params: { id } })
 }
 
-const removeFavorite = async (jobId) => {
-  try {
-    await favoritesApi.remove(jobId)
-    favoriteList.value = favoriteList.value.filter((j) => j.id !== jobId)
-  } catch {
-    // ignore
-  }
-}
+
 </script>
 
 <style scoped lang="scss">

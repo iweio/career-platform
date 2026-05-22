@@ -302,10 +302,6 @@ const isCoachingOpen = ref(false); // 对话框开关
 const coachInputValue = ref(''); // 输入框内容
 const isCoachingLoading = ref(false); // 提交状态
 
-const toggleCoaching = () => {
-  isCoachingOpen.value = !isCoachingOpen.value;
-}
-
 const sendCoachMessage = async () => {
   if (!coachInputValue.value.trim()) return
 

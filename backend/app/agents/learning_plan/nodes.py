@@ -82,14 +82,22 @@ async def self_reflect(state: LearningPlanState) -> Dict:
 async def generate_daily_tasks(state: LearningPlanState) -> Dict:
     uid = state["user_id"]
     existing = await tools.get_learning_plan(uid)
-    if not existing or not existing.get("phases"):
-        return {"daily_tasks": [], "error": "未找到学习计划"}
 
-    phases = existing["phases"]
-    try:
-        phases_data = json.loads(phases) if isinstance(phases, str) else phases
-    except Exception:
-        phases_data = phases
+    if not existing or not existing.get("phases"):
+        # No learning plan yet — generate basic daily tasks from target job
+        phases_data = [{
+            "phase": 1,
+            "title": "基础技能学习",
+            "duration": "1-2个月",
+            "goals": f"掌握{state.get('target_job', '目标岗位')}的核心技能",
+            "items": ["夯实基础知识", "学习核心工具链", "完成实践项目"],
+        }]
+    else:
+        phases = existing["phases"]
+        try:
+            phases_data = json.loads(phases) if isinstance(phases, str) else phases
+        except Exception:
+            phases_data = phases
 
     phase_index = state.get("phase_index", 0)
     if phase_index >= len(phases_data):

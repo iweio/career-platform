@@ -48,8 +48,16 @@ async def get_learning_plan(user_id: int) -> dict | None:
 
 
 async def save_daily_tasks(user_id: int, tasks: list[dict]) -> int:
+    from sqlalchemy import delete as sql_delete
     count = 0
     async with AsyncSessionLocal() as db:
+        # Clear old tasks for today before inserting
+        await db.execute(
+            sql_delete(DailyTask).where(
+                DailyTask.user_id == user_id,
+                DailyTask.task_date == date.today(),
+            )
+        )
         for task in tasks:
             db.add(DailyTask(
                 user_id=user_id,

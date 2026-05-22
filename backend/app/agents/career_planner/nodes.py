@@ -118,8 +118,11 @@ async def save_plan(state: CareerPlannerState) -> Dict:
             uid, top, float(top.get("match_score", 0)), trends, career_path
         )
         return {"plan_id": pid}
-    except Exception:
-        return {"plan_id": 0}
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.exception("[career_planner] Failed to save plan for user %d: %s", uid, e)
+        return {"error": str(e), "plan_id": 0}
 
 
 async def self_reflect(state: CareerPlannerState) -> Dict:

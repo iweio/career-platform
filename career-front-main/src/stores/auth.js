@@ -23,13 +23,6 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
-  async function register(username, email, password) {
-    const { data } = await authApi.register({ username, email, password })
-    _saveTokens(data.access_token, data.refresh_token)
-    user.value = data.user
-    return data
-  }
-
   async function logout() {
     try {
       await authApi.logout(refreshToken.value)
@@ -42,18 +35,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.clear()
   }
 
-  async function refresh() {
-    if (!refreshToken.value) return
-    try {
-      const { data } = await authApi.refresh(refreshToken.value)
-      _saveTokens(data.access_token, data.refresh_token)
-    } catch {
-      accessToken.value = null
-      refreshToken.value = null
-      user.value = null
-      localStorage.clear()
-    }
-  }
-
-  return { user, accessToken, refreshToken, isLoggedIn, login, register, logout, refresh }
+  return { user, accessToken, refreshToken, isLoggedIn, login, logout }
 })

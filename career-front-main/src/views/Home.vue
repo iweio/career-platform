@@ -369,14 +369,9 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Search,
-  User,
-  Lock,
   Document,
   Grid,
   ArrowRight,
-  ChatDotRound,
-  ChatLineRound,
-  Service
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
@@ -441,10 +436,6 @@ const generateAgentDecision = (category) => {
   if (winRate > 80) return "当前岗位与你画像高度契合，建议立即更新简历并投递。";
   return "检测到核心技能缺口，建议优先完成右侧‘技能诊断’中的学习任务后再试。";
 };
-
-const currentPage = ref(1)
-const pageDirection = ref('slide-left')
-let autoPlayTimer = null
 
 const skillCompleteness = ref(0)
 const competitivenessScore = ref(0)
@@ -1775,135 +1766,6 @@ const handleResize = () => {
   }
 }
 
-.auth-card {
-  border-radius: 24px !important;
-  background: rgba(255, 255, 255, 0.65) !important;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
-
-  .login-form {
-    padding: 20px;
-
-    /* 顶部标题区域 */
-    .form-header {
-      text-align: center;
-      margin-bottom: 30px;
-      
-      .user-avatar {
-        background: linear-gradient(135deg, #409EFF 0%, #667eea 100%);
-        box-shadow: 0 4px 15px rgba(64, 158, 255, 0.3);
-        margin-bottom: 12px;
-      }
-      .welcome-text {
-        display: block;
-        font-size: 22px;
-        font-weight: 700;
-        color: #303133;
-      }
-      .sub-text {
-        font-size: 13px;
-        color: #909399;
-        margin-top: 6px;
-      }
-    }
-
-    /* 登录按钮 */
-    .submit-btn {
-      width: 100%;
-      height: 44px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #409EFF 0%, #0076FF 100%);
-      border: none;
-      font-weight: 600;
-      margin-top: 10px;
-      transition: all 0.3s;
-      &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(64, 158, 255, 0.3);
-      }
-    }
-
-    /* 底部页脚区域 - 解决“混乱”的关键 */
-    .form-footer {
-      margin-top: 25px;
-      display: flex;
-      flex-direction: column;
-      align-items: center; /* 居中所有内容 */
-
-      .register-tip {
-        font-size: 12px; /* 🎨 缩小字号 */
-        color: #909399;
-        margin-bottom: 20px;
-        
-        .register-link {
-          color: #409EFF;
-          font-weight: 500;
-          margin-left: 4px;
-          cursor: pointer;
-          &:hover { text-decoration: underline; }
-        }
-      }
-
-      .divider-text {
-        width: 100%;
-        font-size: 12px; /* 🎨 缩小字号 */
-        color: #c0c4cc;
-        text-align: center;
-        margin-bottom: 15px;
-        position: relative;
-        
-        /* 辅助线装饰 */
-        &::before, &::after {
-          content: "";
-          position: absolute;
-          top: 50%;
-          width: 25%;
-          height: 1px;
-          background: rgba(0, 0, 0, 0.06);
-        }
-        &::before { left: 5%; }
-        &::after { right: 5%; }
-      }
-
-      /* 第三方图标 */
-      .social-icons {
-        display: flex;
-        justify-content: center; /* 🌟 核心：让三个圆圈在登录面板水平居中 */
-        gap: 18px;               /* 圆圈之间的间距 */
-        width: 100%;             /* 占满宽度以确保居中基准 */
-        
-        .icon-item {
-          width: 38px;           /* 稍微调大一点点，更精致 */
-          height: 38px;
-          border-radius: 50%;
-          background: #fff;
-          border: 1px solid rgba(0, 0, 0, 0.05);
-          display: flex;
-          align-items: center;   /* 图标垂直居中 */
-          justify-content: center; /* 图标水平居中 */
-          color: #606266;
-          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-          cursor: pointer;
-          
-          /* 🌟 对内部 Element Plus 图标的微调 */
-          .el-icon {
-            font-size: 18px; 
-          }
-          
-          &:hover {
-            color: #409EFF;
-            border-color: #409EFF;
-            transform: translateY(-3px) scale(1.1); /* 悬停时轻微上浮 */
-            background: rgba(64, 158, 255, 0.04);
-            box-shadow: 0 4px 10px rgba(64, 158, 255, 0.1);
-          }
-        }
-      }
-    }
-  }
-}
-
 /* 锁定右侧卡片尺寸，确保布局不跳动 */
 /* 锁定卡片高度，确保不挤压外部布局 */
 .roadmap-focus-card {
@@ -1972,17 +1834,6 @@ const handleResize = () => {
   margin-top: 5px;
 }
 
-/* 旋转光效动画 */
-@keyframes rotateLight {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* 旋转光效动画 */
-@keyframes rotateLight {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
 
 // ========== 4. 动画定义 ==========
 @keyframes gradientBG {

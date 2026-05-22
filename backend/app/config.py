@@ -31,8 +31,9 @@ class Settings(BaseSettings):
 
     # ChromaDB
     CHROMA_PERSIST_DIR: str = "/app/chroma_data"
-    CHROMA_COLLECTION_JOBS: str = "job_descriptions"
+    CHROMA_COLLECTION_JOBS: str = "job_categories"
     CHROMA_COLLECTION_LEARNING: str = "learning_resources"
+    CHROMA_COLLECTION_RESUMES: str = "user_resumes"
 
     # JWT
     JWT_SECRET_KEY: str = "change-me"

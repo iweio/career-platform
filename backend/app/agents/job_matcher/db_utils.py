@@ -3,11 +3,9 @@
 from sqlalchemy import select, func
 from sqlalchemy.dialects.mysql import insert as mysql_insert
 from app.db.mysql import AsyncSessionLocal
-from app.models.favorite import Favorite
 from app.models.profile import UserProfile
 from app.models.job import Job
 from app.models.matching import MatchingReport
-from app.models.career_plan import CareerPlan
 
 
 async def get_user_profile(user_id: int) -> dict | None:
@@ -21,20 +19,13 @@ async def get_user_profile(user_id: int) -> dict | None:
         return {"profile_data": row[0]} if row else None
 
 
-async def get_user_favorites(user_id: int) -> list[int]:
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(Favorite.job_id).where(Favorite.user_id == user_id)
-        )
-        return [r[0] for r in result.fetchall()]
-
-
-async def get_job_details(job_ids: list[int]) -> list[dict]:
-    if not job_ids:
+async def get_jobs_by_category(category_ids: list[int]) -> list[dict]:
+    """Load all jobs under given category IDs."""
+    if not category_ids:
         return []
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(Job).where(Job.id.in_(job_ids))
+            select(Job).where(Job.category_id.in_(category_ids))
         )
         jobs = result.scalars().all()
         return [
@@ -42,6 +33,7 @@ async def get_job_details(job_ids: list[int]) -> list[dict]:
                 "id": j.id, "job_title": j.job_title, "company": j.company,
                 "industry": j.industry, "city": j.city, "salary_range": j.salary_range,
                 "job_description": j.job_description, "requirements": j.requirements,
+                "category_id": j.category_id,
             }
             for j in jobs
         ]
@@ -72,12 +64,3 @@ async def save_match_report(user_id: int, job_name: str, match_score: float,
     return report.id
 
 
-async def save_analysis_result(user_id: int, analysis: dict,
-                                target_position: str = "", target_company: str = "") -> bool:
-    async with AsyncSessionLocal() as db:
-        db.add(CareerPlan(
-            user_id=user_id, target_position=target_position,
-            target_company=target_company, plan_data=analysis, status="active",
-        ))
-        await db.commit()
-    return True

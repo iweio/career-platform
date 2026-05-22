@@ -1,6 +1,5 @@
 """Ingest learning resources into ChromaDB for the learning plan agent."""
 from app.rag.vector_store import get_learning_collection
-from app.rag.embedding import get_embeddings
 
 # Seed learning resource data — in production this comes from a CMS or external API
 SEED_RESOURCES = [
@@ -136,5 +135,12 @@ async def ingest_learning_resources():
         for r in SEED_RESOURCES
     ]
 
-    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
-    print(f"[RAG] Ingested {len(SEED_RESOURCES)} learning resources into ChromaDB.")
+    # DashScope batch limit: 10 per request
+    BATCH = 10
+    for i in range(0, len(ids), BATCH):
+        collection.upsert(
+            ids=ids[i:i + BATCH],
+            documents=documents[i:i + BATCH],
+            metadatas=metadatas[i:i + BATCH],
+        )
+    print(f"[RAG] Ingested {len(SEED_RESOURCES)} learning resources into ChromaDB (DashScope).")

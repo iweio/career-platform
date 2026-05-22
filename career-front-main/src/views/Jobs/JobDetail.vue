@@ -63,7 +63,6 @@
         </template>
         <div class="graph-wrapper">
           <div ref="graphContainer" class="graph-canvas"></div>
-          <el-button class="reset-btn" @click="resetView" circle icon="Refresh" />
         </div>
       </el-card>
 
@@ -288,8 +287,6 @@ const toggleFavorite = async () => {
 // 1. 在脚本最顶部增加导入 (约第 34 行 import 区域)
 
 
-// 2. 在 toggleFavorite 函数下方追加以下绘图逻辑
-const graph = ref(null);
 onBeforeUnmount(() => {
   if (graphInstance && typeof graphInstance._destructor === 'function') {
     graphInstance._destructor()

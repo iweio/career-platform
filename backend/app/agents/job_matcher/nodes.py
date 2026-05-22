@@ -8,10 +8,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.llm_factory import get_llm
 from app.agents.job_matcher.state import JobMatcherState
-from app.agents.job_matcher.prompts import WEIGHT_PROMPT, MATCH_PROMPT, MERGE_PROMPT, SELF_REFLECT_PROMPT
+from app.agents.job_matcher.prompts import WEIGHT_PROMPT, MATCH_PROMPT, SELF_REFLECT_PROMPT
 from app.agents.job_matcher import db_utils
-from app.rag.retrievers import resume_job_matcher
-from app.db.neo4j import neo4j_manager
+from app.rag.retrievers import resume_job_matcher, resume_retriever
 
 
 async def load_user_profile(state: JobMatcherState) -> Dict:
@@ -30,64 +29,39 @@ async def load_user_profile(state: JobMatcherState) -> Dict:
 
 
 async def retrieve_candidates(state: JobMatcherState) -> Dict:
-    """RAG: use resume text to find top candidate jobs via vector search."""
+    """RAG: use resume text to find top matching job categories via vector search.
+    Returns category IDs (from job_categories table), not individual job IDs."""
     profile = state.get("user_profile", {})
-    # Build a search query from user profile
-    profile_text = json.dumps(profile, ensure_ascii=False)
-    candidate_ids = resume_job_matcher.retrieve_candidates(profile_text, top_k=10)
-    return {"candidate_job_ids": candidate_ids}
+    uid = state["user_id"]
+
+    # Try stored resume vector first (better formatted text for embedding)
+    stored = resume_retriever.get_vector(uid)
+    profile_text = stored if stored else json.dumps(profile, ensure_ascii=False)
+
+    category_ids = resume_job_matcher.retrieve_candidates(profile_text, top_k=10)
+    return {"category_ids": category_ids}
 
 
 async def load_job_details(state: JobMatcherState) -> Dict:
-    ids = state.get("candidate_job_ids", [])
-    if not ids:
-        # Fallback: user favorites
-        uid = state["user_id"]
-        fav_ids = await db_utils.get_user_favorites(uid)
-        if fav_ids:
-            ids = [str(i) for i in fav_ids]
-
+    ids = state.get("category_ids", [])
     if not ids:
         return {"job_details": [], "match_results": []}
 
-    details = await db_utils.get_job_details([int(i) for i in ids])
+    details = await db_utils.get_jobs_by_category([int(i) for i in ids])
     return {"job_details": details}
-
-
-async def neo4j_enrich(state: JobMatcherState) -> Dict:
-    """Enrich job matching with Neo4j graph profiles."""
-    jobs = state.get("job_details", [])
-    profiles = []
-
-    try:
-        session = await neo4j_manager.get_session()
-        for job in jobs:
-            result = await session.run(
-                "MATCH (jp:JobProfile {title: $title}) RETURN jp",
-                title=job.get("job_title", ""),
-            )
-            record = await result.single()
-            if record:
-                profiles.append(dict(record["jp"]))
-        await session.close()
-    except Exception:
-        pass
-
-    return {"neo4j_profiles": profiles}
 
 
 async def llm_match(state: JobMatcherState) -> Dict:
     """LLM-based dimension matching for each job."""
     profile = state.get("user_profile", {})
     jobs = state.get("job_details", [])
-    neo4j = state.get("neo4j_profiles", [])
 
     if not jobs:
         return {"match_results": []}
 
     llm = get_llm(temperature=0.3)
 
-    async def match_one(job: dict, n4j: dict | None) -> dict:
+    async def match_one(job: dict) -> dict:
         profile_text = json.dumps(profile, ensure_ascii=False)
         job_text = json.dumps(job, ensure_ascii=False)
 
@@ -127,8 +101,7 @@ async def llm_match(state: JobMatcherState) -> Dict:
 
     tasks = []
     for job in jobs:
-        n4j_match = next((n for n in neo4j if n.get("title") == job.get("job_title")), None)
-        tasks.append(match_one(job, n4j_match))
+        tasks.append(match_one(job))
 
     results = await asyncio.gather(*tasks)
     return {"match_results": list(results)}

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import String, Integer, Text, Date, DateTime, Index, func
+from sqlalchemy import String, Integer, Text, Date, DateTime, Index, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 
@@ -16,6 +16,9 @@ class Job(Base):
     job_description: Mapped[str | None] = mapped_column(Text)
     requirements: Mapped[str | None] = mapped_column(Text)
     publish_date: Mapped[date | None] = mapped_column(Date)
+    category_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("job_categories.id")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now()
     )

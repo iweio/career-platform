@@ -61,6 +61,7 @@ class CareerPlannerAgent(AgentBase):
             "promotion_data": result.get("promotion_data", []),
             "career_path": result.get("career_path"),
             "chart_path": result.get("chart_path", ""),
+            "plan_id": result.get("plan_id", 0),
         }
 
 

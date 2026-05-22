@@ -6,8 +6,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.rag.embedding import get_embeddings
-from app.rag.vector_store import get_job_collection, get_learning_collection
+from app.rag.vector_store import get_job_collection, get_learning_collection, get_resume_collection
 
 
 @dataclass
@@ -34,50 +33,54 @@ class ResourceResult:
 
 
 class JobRetriever:
-    """Semantic job search using vector similarity.
+    """Semantic job search — finds matching categories via vector, then loads jobs from MySQL."""
 
-    Replaces the old SQL LIKE-based fuzzy search with embedding-based
-    semantic matching for better recall and relevance.
-    """
-
-    def search(
+    async def search(
         self,
         query: str,
         top_k: int = 10,
         industry: str = None,
         city: str = None,
     ) -> List[JobResult]:
+        from sqlalchemy import select
+        from app.db.mysql import AsyncSessionLocal
+        from app.models.job import Job
+
         collection = get_job_collection()
-        where_filter = {}
-        if industry:
-            where_filter["industry"] = industry
-        if city:
-            where_filter["city"] = city
+        results = collection.query(query_texts=[query], n_results=top_k)
 
-        results = collection.query(
-            query_texts=[query],
-            n_results=top_k,
-            where=where_filter if where_filter else None,
-        )
-
-        jobs = []
+        category_scores = {}  # category_id -> score
         if results["ids"] and results["ids"][0]:
             for i, doc_id in enumerate(results["ids"][0]):
-                meta = results["metadatas"][0][i] if results["metadatas"] else {}
                 dist = results["distances"][0][i] if results["distances"] else 0
-                score = max(0.0, 1.0 - dist)  # cosine distance → similarity
+                category_scores[int(doc_id)] = max(0.0, 1.0 - dist)
 
-                jobs.append(JobResult(
-                    id=doc_id,
-                    job_title=meta.get("job_title", ""),
-                    company=meta.get("company", ""),
-                    industry=meta.get("industry", ""),
-                    city=meta.get("city", ""),
-                    salary_range=meta.get("salary_range", ""),
-                    score=round(score, 4),
-                ))
+        if not category_scores:
+            return []
 
-        return sorted(jobs, key=lambda j: j.score, reverse=True)
+        async with AsyncSessionLocal() as db:
+            stmt = select(Job).where(Job.category_id.in_(category_scores.keys()))
+            if industry:
+                stmt = stmt.where(Job.industry == industry)
+            if city:
+                stmt = stmt.where(Job.city == city)
+            result = await db.execute(stmt)
+            jobs = result.scalars().all()
+
+        out = []
+        for j in jobs:
+            score = category_scores.get(j.category_id, 0)
+            out.append(JobResult(
+                id=str(j.id),
+                job_title=j.job_title,
+                company=j.company,
+                industry=j.industry or "",
+                city=j.city or "",
+                salary_range=j.salary_range or "",
+                score=round(score, 4),
+            ))
+
+        return sorted(out, key=lambda r: r.score, reverse=True)
 
 
 class ResumeJobMatcher:
@@ -94,17 +97,6 @@ class ResumeJobMatcher:
         if results["ids"] and results["ids"][0]:
             return results["ids"][0]
         return []
-
-    def get_job_texts(self, job_ids: list[str]) -> dict[str, str]:
-        """Get job document texts for a list of IDs."""
-        collection = get_job_collection()
-        results = collection.get(ids=job_ids)
-        texts = {}
-        if results["ids"]:
-            for i, doc_id in enumerate(results["ids"]):
-                texts[doc_id] = results["documents"][i] if results["documents"] else ""
-        return texts
-
 
 class LearningRetriever:
     """Learning resource search for the learning plan agent.
@@ -139,7 +131,44 @@ class LearningRetriever:
         return sorted(resources, key=lambda r: r.score, reverse=True)
 
 
+class ResumeRetriever:
+    """Resume vector storage and semantic search.
+
+    Stores user profile embeddings for persistent reuse:
+    - After resume analysis, store the profile vector
+    - Matching can load stored vector instead of re-embedding
+    - Enables semantic search across all user profiles
+    """
+
+    def store(self, user_id: int, profile_text: str, metadata: dict | None = None) -> bool:
+        """Upsert a user's profile embedding into ChromaDB."""
+        collection = get_resume_collection()
+        doc_id = str(user_id)
+        meta = metadata or {}
+        meta["user_id"] = user_id
+
+        # Remove existing entry if present
+        existing = collection.get(ids=[doc_id])
+        if existing and existing["ids"]:
+            collection.delete(ids=[doc_id])
+
+        collection.add(
+            ids=[doc_id],
+            documents=[profile_text],
+            metadatas=[meta],
+        )
+        return True
+
+    def get_vector(self, user_id: int) -> str | None:
+        """Get a stored resume document for a user, or None."""
+        collection = get_resume_collection()
+        results = collection.get(ids=[str(user_id)])
+        if results and results["ids"] and results["documents"]:
+            return results["documents"][0]
+        return None
+
 # Singleton instances
 job_retriever = JobRetriever()
 resume_job_matcher = ResumeJobMatcher()
 learning_retriever = LearningRetriever()
+resume_retriever = ResumeRetriever()

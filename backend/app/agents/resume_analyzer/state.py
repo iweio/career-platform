@@ -1,8 +1,9 @@
-from typing import TypedDict, List, Dict
+from typing import TypedDict
 
 
 class ResumeAnalyzerState(TypedDict, total=False):
     # Input
+    user_id: int
     input_text: str
     file_path: str
     image_path: str

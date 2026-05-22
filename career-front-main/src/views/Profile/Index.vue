@@ -209,7 +209,7 @@
 
 <script setup>
 import { ref, nextTick, computed } from 'vue'
-import { Refresh, Histogram, Upload } from '@element-plus/icons-vue'
+import { Upload } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // 导入你的子组件
@@ -265,21 +265,9 @@ const currentHighlights = computed(() => {
   return [...skills.slice(0, 3), ...certs.slice(0, 2)]
 })
 
-const currentSuggestion = computed(() => {
-  if (!analysisResult.value) return ''
-  return analysisResult.value.suggestion || ''
-})
-
 const chatMessages = ref([
   { id: 1, role: 'assistant', content: '您好！我是您的AI职业向导。您可以直接粘贴简历内容或上传文件。' }
 ])
-
-const quickActions = [
-  { label: '📝 开始分析', command: '分析我的简历' },
-  { label: '🔍 检查完整度', command: '简历完整度检查' }
-]
-
-const progressValue = computed(() => userInfo.value.rawResumeText.length > 50 ? 85 : 10)
 
 // 🌟 修复核心：确保菜单选择逻辑能干净地切换 activeTab
 const handleMenuSelect = (index) => {
@@ -399,26 +387,10 @@ const handleFileUpload = () => {
   ElMessage.success('文件解析中...')
 }
 
-const handleQuickAction = (cmd) => {
-  inputValue.value = cmd
-  handleSend()
-}
-
 const scrollToBottom = async () => {
   await nextTick()
   if (messageListRef.value) messageListRef.value.scrollTop = messageListRef.value.scrollHeight
 }
-
-const handleDeepAnalysis = () => {
-  // 1. 设置临时标记，告知首页信息已填
-  sessionStorage.setItem('is_profile_completed', 'true');
-  
-  // 2. 原有的跳转逻辑
-  router.push('/').then(() => {
-    // 强制刷新一下首页的状态（可选，如果 Home 逻辑没跑）
-    window.location.reload(); 
-  });
-};
 
 const dimensionDetails = computed(() => {
   const details = {}

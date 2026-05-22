@@ -154,7 +154,7 @@
 import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import {
-  ChatDotRound, ChatLineRound, Document, Location, Money, TrendCharts, Guide, Finished,Histogram,Checked,Loading
+  ChatDotRound, ChatLineRound, Location, Money, TrendCharts, Histogram, Checked
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { matchingApi } from '@/api/matching'
@@ -167,7 +167,6 @@ const activeTab = ref('matching')
 const overallScore = ref(0)
 const aiSummary = ref('')
 const skillDetails = ref([])
-const detailedAnalysis = ref('')
 
 // 规划页面数据变量
 const expectedCities = ref([])
@@ -291,8 +290,6 @@ const getProgressColor = (score) => {
   if (score >= 70) return themeColors.primary;   // 蓝色
   return themeColors.orange;                      // 橙色
 }
-
-const formatAnalysisText = (text) => text
 
 // ==================== 4. ECharts 初始化方法 (深度美化) ====================
 

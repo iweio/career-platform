@@ -131,7 +131,7 @@
                     <h4>实时画像预览</h4>
                     <div class="completion-status">
                       <span class="percentage">
-                        {{ currentStepIndex === 0 ? '0%' : currentStepIndex === 1 ? '14%' : currentStepIndex === 2 ? '100%' : '100%' }}
+                        {{ completeness }}%
                       </span>
                       <span class="label">维度完善度</span>
                     </div>
@@ -219,6 +219,8 @@ import GrowthTracker from './GrowthTracker.vue'
 import PolishAndExport from './PolishAndExport.vue'
 import FavoriteJobs from './FavoriteJobs.vue'
 import RadarChart from '../../components/RadarChart.vue'
+import { resumeApi } from '@/api/resume'
+
 const attachedFile = ref(null) // 存储文件对象
 
 // 🌟 处理文件选择逻辑
@@ -248,46 +250,25 @@ const avatarUrl = ref('https://ui-avatars.com/api/?name=User&size=120&background
 
 const userInfo = ref({ name: '', email: '', rawResumeText: '', school: '' })
 
-// --- 新增：模拟 AI 剧本配置 ---
-const scriptSteps = [
-  {
-    answer: "你提到参加过创新创业大赛，可以具体聊聊你的项目是什么，以及取得了什么样的成绩吗？ 关于在腾讯的实习经历，你当时是在哪个岗位实习呢？主要负责哪些工作，有没有什么让你印象深刻的成果呀？ 除了Python编程，你有没有考取过什么相关的证书呢？ 你觉得自己的学习能力怎么样呀？有没有什么快速掌握新知识的例子可以分享呢？ 在团队合作或者项目中，你通常是如何与队友沟通的呢？ 面对压力比较大的任务或项目时，你一般会怎么应对呢？",
-    radarData: [40, 30, 0, 50, 0, 0, 0], // 对应 9 维能力的数值
-  },
-  {
-    answer: "🎉 信息已完善！恭喜您完成了所有7个维度的信息采集",
-    radarData: [85, 90, 95, 95, 80, 85, 60],
-  },
-  {
-    answer: "分析已全部完成！基于你目前的表现，我为你匹配了‘前端开发’、‘UI 交互’等目标岗位。你可以点击下方的‘保存并开始 AI 深度分析’，查看完整的职业路线图和优化策略。",
-    radarData: [90, 85, 90, 80, 85, 90, 85],
-  }
-];
+// --- 真实 state：追踪 resume extract → supplement → analyze 流程 ---
+const supplementCount = ref(0)        // 已补充轮数 (max 3)
+const profileData = ref(null)         // 当前提取的 profile_data
+const completeness = ref(0)           // 完整度 0-100
+const analysisResult = ref(null)      // 最终分析结果
+const currentRadarData = ref([0, 0, 0, 0, 0, 0, 0])
+const radarLabelMap = ['专业技能', '创新能力', '学习能力', '实习能力', '抗压能力', '沟通能力', '证书']
 
-
-
-// --- 新增：状态追踪变量 ---
-const currentStepIndex = ref(0); // 记录当前对话到第几轮了
-const currentRadarData = ref([0, 0, 0, 0, 0, 0, 0]); // 传给右侧看板的数据
-
-// 在 script 标签内添加
 const currentHighlights = computed(() => {
-  const highlights = [
-    [], // 初始状态
-    ['熟悉 Python'],
-    ['计算机二级', '掌握数据结构与算法', '精通Java/Python等开发技术']
-  ];
-  return highlights[currentStepIndex.value] || highlights[2];
-});
+  if (!profileData.value) return []
+  const skills = profileData.value.skills || []
+  const certs = profileData.value.certificates || []
+  return [...skills.slice(0, 3), ...certs.slice(0, 2)]
+})
 
 const currentSuggestion = computed(() => {
-  const suggestions = [
-    '',
-    '建议强化实战项目中的困难解决方案描述。',
-    '画像已成熟，建议考取计算机二级证书并加强抗压练习。'
-  ];
-  return suggestions[currentStepIndex.value] || suggestions[2];
-});
+  if (!analysisResult.value) return ''
+  return analysisResult.value.suggestion || ''
+})
 
 const chatMessages = ref([
   { id: 1, role: 'assistant', content: '您好！我是您的AI职业向导。您可以直接粘贴简历内容或上传文件。' }
@@ -305,72 +286,113 @@ const handleMenuSelect = (index) => {
   activeTab.value = index
 }
 
-// 🌟 修改发送逻辑
 const handleSend = async () => {
-  // 1. 拦截逻辑：文字和附件都为空时才拦截
   if (!inputValue.value.trim() && !attachedFile.value) {
     ElMessage.warning('请输入内容或上传简历附件')
     return
   }
 
-  // 2. 构造用户消息内容
-  // 如果有文件，展示 [附件:文件名]；如果有文字，也一并拼接到内容里
-  let displayContent = inputValue.value;
-  if (attachedFile.value) {
-    displayContent += displayContent ? `\n[附件: ${attachedFile.value.name}]` : `[附件: ${attachedFile.value.name}]`;
-  }
+  const displayContent = inputValue.value + (attachedFile.value ? `\n[附件: ${attachedFile.value.name}]` : '')
 
-  // 3. 🌟 关键：推送到聊天记录数组 (注意：这里使用你原本代码中的 chatMessages)
   chatMessages.value.push({
-    id: Date.now(),
-    role: 'user',
-    content: displayContent,
-    time: new Date().toLocaleTimeString()
-  });
+    id: Date.now(), role: 'user', content: displayContent, time: new Date().toLocaleTimeString()
+  })
 
-  // 4. 更新简历文本（模拟你的业务逻辑）
-  if (inputValue.value) {
-    userInfo.value.rawResumeText += inputValue.value;
+  userInfo.value.rawResumeText += inputValue.value
+  const savedText = inputValue.value
+  inputValue.value = ''
+  attachedFile.value = null
+
+  loading.value = true
+  await scrollToBottom()
+
+  try {
+    if (!profileData.value || completeness.value < 100) {
+      // 第一阶段: extract 或 supplement
+      let res
+      if (supplementCount.value === 0) {
+        // 首次：调 extract
+        const formData = new FormData()
+        formData.append('input_text', savedText)
+        res = await resumeApi.extract(formData)
+      } else {
+        // 后续：调 supplement
+        res = await resumeApi.supplement({
+          input_text: userInfo.value.rawResumeText,
+          supplement_text: savedText,
+          supplement_count: supplementCount.value,
+          user_profile: profileData.value,
+        })
+      }
+      supplementCount.value++
+
+      const d = res.data?.data
+      if (d) {
+        profileData.value = d.profile_data
+        completeness.value = d.completeness || 0
+        if (d.profile_data?.scores) {
+          currentRadarData.value = d.profile_data.scores.map(s => s.score || s)
+        }
+        userInfo.value = { ...userInfo.value, ...d.profile_data }
+
+        if (d.question) {
+          chatMessages.value.push({
+            id: Date.now(), role: 'assistant', content: d.question, time: new Date().toLocaleTimeString()
+          })
+        } else {
+          chatMessages.value.push({
+            id: Date.now(), role: 'assistant',
+            content: '🎉 信息已完善！点击下方「保存并开始 AI 深度分析」获取完整报告。',
+            time: new Date().toLocaleTimeString()
+          })
+        }
+      }
+    } else {
+      // 已完善：直接分析
+      chatMessages.value.push({
+        id: Date.now(), role: 'assistant',
+        content: '信息已完善，请点击下方按钮开始深度分析。',
+        time: new Date().toLocaleTimeString()
+      })
+    }
+  } catch (e) {
+    chatMessages.value.push({
+      id: Date.now(), role: 'assistant',
+      content: '抱歉，AI 服务暂时不可用，请稍后重试。',
+      time: new Date().toLocaleTimeString()
+    })
+  } finally {
+    loading.value = false
+    await scrollToBottom()
   }
-
-  // 5. 清空输入状态
-  const savedInputValue = inputValue.value; // 如果后续 API 需要用到，可以先存一下
-  inputValue.value = '';
-  attachedFile.value = null; // 清空附件，让 UI 上的标签消失
-
-  // 6. UI 反馈与滚动
-  loading.value = true;
-  await scrollToBottom();
-
-  // 7. 模拟 AI 回复
-  // 🌟 找到原有 handleSend 的 setTimeout 部分并替换
-setTimeout(async () => {
-  // 1. 根据当前步数获取剧本内容，如果超出剧本长度则循环最后一条
-  const step = scriptSteps[currentStepIndex.value] || scriptSteps[scriptSteps.length - 1];
-
-  // 2. 将硬编码的回答推送到聊天列表
-  chatMessages.value.push({
-    id: Date.now(),
-    role: 'assistant',
-    content: step.answer, // 使用剧本里的回答
-    time: new Date().toLocaleTimeString()
-  });
-
-  // 3. 🌟 关键：更新右侧看板所需的数据变量
-  currentRadarData.value = step.radarData;
-
-  // 4. 对话步数加 1
-  currentStepIndex.value++;
-
-  loading.value = false;
-  await scrollToBottom();
-}, 3000); // 稍微延长到 1.2s，模拟 AI 思考和更新画像的过程
 }
 
-const saveAndContinue = () => {
-  isInfoFilled.value = true
-  ElMessage.success('简历保存成功！')
-  sessionStorage.setItem('is_profile_completed', 'true');
+const saveAndContinue = async () => {
+  if (!profileData.value) { ElMessage.warning('请先完成简历信息提取'); return }
+
+  loading.value = true
+  try {
+    const { data } = await resumeApi.analyze({ user_profile: profileData.value })
+    if (data.success && data.data) {
+      analysisResult.value = data.data
+      if (data.data.scores) {
+        currentRadarData.value = data.data.scores.map(s => s.score || s)
+      }
+      chatMessages.value.push({
+        id: Date.now(), role: 'assistant',
+        content: data.data.analysis_report?.summary || '分析完成！',
+        time: new Date().toLocaleTimeString()
+      })
+    }
+    isInfoFilled.value = true
+    ElMessage.success('AI 分析完成！')
+    sessionStorage.setItem('is_profile_completed', 'true')
+  } catch (e) {
+    ElMessage.error('分析服务暂时不可用')
+  } finally {
+    loading.value = false
+    await scrollToBottom()
+  }
 }
 
 const handleFileUpload = () => {
@@ -398,63 +420,24 @@ const handleDeepAnalysis = () => {
   });
 };
 
-// 找到 Index.vue 中的 dimensionDetails 部分，替换为以下代码
 const dimensionDetails = computed(() => {
-  // 默认初始状态或第一轮对话的状态
-  const defaultDetails = {
-    "专业技能": { status: "已完善", desc: "会Python编程", type: "success" },
-    "证书": { status: "未提及", desc: "用户未提及此维度", type: "info" },
-    "创新能力": { status: "不清楚", desc: "用户提及但无具体例子", type: "warning" },
-    "学习能力": { status: "未提及", desc: "用户未提及此维度", type: "info" },
-    "抗压能力": { status: "未提及", desc: "用户未提及此维度", type: "info" },
-    "沟通能力": { status: "未提及", desc: "用户未提及此维度", type: "info" },
-    "实习能力": { status: "不清楚", desc: "用户提及但无具体例子", type: "warning" }
-  };
+  const details = {}
+  const dims = ['专业技能', '创新能力', '学习能力', '实习能力', '抗压能力', '沟通能力', '证书']
+  const scores = analysisResult.value?.scores || profileData.value?.scores || []
 
-  // 第二轮对话及以后（currentStepIndex >= 2）返回你要求的完整信息
-  const completedDetails = {
-    "专业技能": { 
-      status: "已完善", 
-      desc: "精通Java/Python等开发技术；扎实掌握数据结构与算法", 
-      type: "success" 
-    },
-    "证书": { 
-      status: "已完善", 
-      desc: "持有计算机二级等专业证书", 
-      type: "success" 
-    },
-    "创新能力": { 
-      status: "已完善", 
-      desc: "主导大创项目，运用知识图谱等技术实现创新方案，成果显著；参加过创新创业大赛", 
-      type: "success" 
-    },
-    "学习能力": { 
-      status: "已完善", 
-      desc: "GPA 3.7/4.0，专业排名前10%；自主学习能力强，能快速掌握新技术", 
-      type: "success" 
-    },
-    "抗压能力": { 
-      status: "已完善", 
-      desc: "能高效应对项目攻坚、多任务并行等高压场景，按时高质量完成目标", 
-      type: "success" 
-    },
-    "沟通能力": { 
-      status: "已完善", 
-      desc: "具备优秀跨部门协作与团队统筹能力，高效推进项目落地", 
-      type: "success" 
-    },
-    "实习能力": { 
-      status: "已完善", 
-      desc: "在腾讯实习过，参与企业软件开发全流程，完成功能开发、测试优化，积累扎实工程实践经验", 
-      type: "success" 
+  dims.forEach((name, i) => {
+    const score = scores[i]?.score || scores[i] || 0
+    const desc = scores[i]?.desc || scores[i]?.comment || ''
+    if (score >= 60) {
+      details[name] = { status: '已完善', desc: desc || radarLabelMap[i], type: 'success' }
+    } else if (score > 0) {
+      details[name] = { status: '不清楚', desc: desc || '需要补充信息', type: 'warning' }
+    } else {
+      details[name] = { status: '未提及', desc: '此维度尚未涉及', type: 'info' }
     }
-  };
-
-  // 根据当前对话步数切换显示内容
-  // 因为你在 handleSend 中每次回复后会 currentStepIndex.value++
-  // 初始是 0，第一次回复后是 1，第二次回复后是 2
-  return currentStepIndex.value >= 2 ? completedDetails : defaultDetails;
-});
+  })
+  return details
+})
 </script>
 
 <style scoped lang="scss">

@@ -187,9 +187,21 @@ ctx.fillStyle = node.level === 1 ? '#ffffff' : '#001f3f';
     .d3VelocityDecay(0.2)
     
 
-  // TODO: 替换为后端 API GET /api/v1/jobs/{id}/graph
+  let graphNodes, graphLinks
   try {
-    const nodes = mockGraphData.nodes.map(n => {
+    const { data: gData } = await jobsApi.graph(jobId.value)
+    if (gData.success && gData.data) {
+      graphNodes = gData.data.nodes || []
+      graphLinks = gData.data.links || []
+    }
+  } catch { /* fallback to mock */ }
+
+  if (!graphNodes || graphNodes.length === 0) {
+    graphNodes = mockGraphData.nodes
+    graphLinks = mockGraphData.links
+  }
+
+  const nodes = graphNodes.map(n => {
       let level = 3
       if (n.label === 'Job') level = 1
       else if (n.label === 'Skill') level = 2
@@ -199,12 +211,9 @@ ctx.fillStyle = node.level === 1 ? '#ffffff' : '#001f3f';
       else finalColor = THIRD_LEVEL_COLORS[n.id.charCodeAt(n.id.length - 1) % THIRD_LEVEL_COLORS.length]
       return { id: n.id, name: n.name, color: finalColor, val: n.val, level, fx: null, fy: null }
     })
-    graphInstance.graphData({ nodes, links: mockGraphData.links.map(l => ({ source: l.source, target: l.target })) })
+    graphInstance.graphData({ nodes, links: graphLinks.map(l => ({ source: l.source, target: l.target })) })
     setTimeout(() => { graphInstance.centerAt(0, 0, 500); graphInstance.zoom(0.5, 500) }, 500)
     return
-  } catch (err) {
-    console.warn('Graph 数据加载失败:', err)
-  }
 };
 
 const loading = ref(true)

@@ -7,7 +7,7 @@
             <el-avatar :size="70" :src="avatarUrl" class="user-avatar" />
             <div class="user-text">
               <div class="name-row">
-                <h2>{{ userInfo.name || '张三' }}</h2>
+                <h2>{{ userInfo.name || '未设置姓名' }}</h2>
                 <el-tag size="small" class="status-tag">分析已就绪</el-tag>
               </div>
               <p class="sub-info">
@@ -25,7 +25,7 @@
           <div class="score-container">
             <span class="label">综合评分</span>
             <div class="big-score">{{ competitivenessScore }}</div>
-            <el-tag size="small" class="score-tag">超越 92% 同类人才</el-tag>
+            <el-tag size="small" class="score-tag">综合竞争力指数</el-tag>
           </div>
         </el-card>
       </el-col>
@@ -72,31 +72,12 @@
             </div>
           </template>
 <div class="report-content-grid">
-  <div class="report-item">
-    <h4>核心优势</h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;您的职业基因呈现出极强的「高起点与快转化」特征。其核心竞争力在于卓越的知识内化效率与大厂级工程规范的深度融合。在学习能力与实习能力维度上，您均获得了九十五分的顶尖评价，这直接反映在您三点七的高绩点和专业前百分之十的学术排名中。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;更核心的表现是，您在面对高难度、高密度的知识体系时，拥有极强的底层逻辑拆解能力。这种素质在您的腾讯实习经历中得到了完美转化，您不仅完成了业务功能的开发，更深度参与了从需求初步拆解到最终测试上线的全生命周期闭环。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;这意味着您已初步建立起大型分布式系统的工程思维，能够无缝对接一线互联网平台的开发节奏与技术标准。这种「学术深厚」与「实战扎实」并存的双重背景，构成了您在同龄应届生中极具杀伤力的职业竞争壁垒，让您在技术理解力与执行稳健性上都具备了显著优势。</p>
+  <div v-if="aiSuggestions" class="report-item">
+    <p>{{ aiSuggestions }}</p>
   </div>
-
-  <div class="report-item">
-    <h4>提分建议</h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;针对您目前证书竞争力评分与其技术深度严重脱节的现状，建议实施精准的「专业背书升级」战略。目前的证书短板可能在大型企业或外企的初筛环节成为潜在的阻碍因素，因此应当采取「降维打击」策略，将您的实战经验转化为行业公认的官方证明。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;鉴于您在大创项目中展现出的知识图谱与算法背景，下一步应从「功能实现者」向「架构设计者」跨越。建议优先考取与后端开发、云架构高度相关的专业级认证，如阿里云 ACP 或 AWS 解决方案架构师。这能迅速将您的技术敏感度转化为行业认可的专业权威。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;此外，通过获取这些高含金量的证书，可以有效消除纸面证明与实际工程实力之间的非对称性。这不仅能为后续向技术统筹或项目管理转型提供必要的准入背书，更能让您的简历在算法筛选阶段脱颖而出，彻底补齐职业竞争力拼图的最后一块缺失环节。</p>
-  </div>
-
-  <div class="report-item">
-    <h4>职业展望</h4>
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;基于您在 Java 与 Python 双栖开发的深厚背景，您的职业进化路径清晰地指向了具备技术领导力潜质的「准专家级」开发者。在短期内，您的目标应精准锁定头部互联网平台的高级后端开发或算法工程化岗位，主导核心业务的高并发模块设计，建立深厚的技术信用。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;从长远战略视角来看，凭借您在沟通维度展现出的跨部门协作能力与团队统筹潜质，您的职业天花板将延伸至技术架构师或研发部门负责人。您对前沿技术趋势的预判力将帮助您在职场黄金期主导中大型技术团队的战略规划与选型决策，实现从技术执行向技术决策的跃迁。</p>
-    
-    <p>&nbsp;&nbsp;&nbsp;&nbsp;您不仅有望成为某一技术领域的深度专家，更能成长为平衡业务逻辑与技术演进的复合型技术领袖。在未来三到五年内，通过在工业界一线快速沉淀深厚的技术资产，您将建立起不可替代的个人品牌影响力，在瞬息万变的技术生态中始终占据核心的职业竞争位点。</p>
+  <div v-else class="report-item empty-report">
+    <el-icon><InfoFilled /></el-icon>
+    <p>请先前往个人中心完成简历分析与岗位匹配，系统将自动生成 AI 深度诊断报告。</p>
   </div>
 </div>
         </el-card>
@@ -107,7 +88,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, defineProps, defineEmits, nextTick } from 'vue'
-import { School, Message, MagicStick } from '@element-plus/icons-vue'
+import { School, Message, MagicStick, InfoFilled } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import { profileApi } from '@/api/profile'
 
@@ -376,7 +357,20 @@ const data = wordCloudData.value
     text-align: justify; // 保证边缘整齐
     
     // 如果不想要缩进，可以删掉下面这行
-    text-indent: 0; 
+    text-indent: 0;
+  }
+
+  &.empty-report {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    grid-column: 1 / -1;
+    padding: 40px 20px;
+    color: #94a3b8;
+    font-size: 14px;
+    .el-icon { font-size: 40px; margin-bottom: 12px; color: #cbd5e1; }
   }
 }
     }

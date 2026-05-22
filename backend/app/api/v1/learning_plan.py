@@ -47,7 +47,7 @@ async def generate_plan(req: GenerateRequest, user: dict = Depends(get_current_u
     result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "generate", "plan_type": req.plan_type,
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -57,7 +57,7 @@ async def polish_plan(req: PolishRequest, user: dict = Depends(get_current_user)
     result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "polish", "user_feedback": req.feedback,
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -67,7 +67,7 @@ async def generate_daily_tasks(req: DailyTasksRequest, user: dict = Depends(get_
     result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "daily_tasks", "phase_index": req.phase_index,
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -80,7 +80,7 @@ async def adjust_tasks(req: AdjustRequest, user: dict = Depends(get_current_user
         "completed_task_ids": req.completed_tasks,
         "remaining_tasks": req.remaining_tasks,
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -90,7 +90,7 @@ async def export_plan(user: dict = Depends(get_current_user)):
     result = await _run_lp_agent({
         "user_id": user["user_id"], "action": "export",
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 

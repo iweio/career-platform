@@ -81,14 +81,19 @@ class LearningPlanAgent(AgentBase):
             "remaining_tasks": input_data.get("remaining_tasks", []),
         })
 
-        return {
+        final = {
             "action": input_data.get("action", "generate"),
             "learning_plan": result.get("learning_plan"),
             "daily_tasks": result.get("daily_tasks", []),
             "export_text": result.get("export_text"),
             "resources": result.get("resources", []),
-            "error": result.get("error"),
         }
+
+        err = result.get("error")
+        if err:
+            final["error"] = err
+
+        return final
 
 
 agent = LearningPlanAgent()

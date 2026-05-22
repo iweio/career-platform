@@ -170,6 +170,9 @@ async def export_plan(state: LearningPlanState) -> Dict:
     plan = await tools.get_learning_plan(uid)
     tasks = await tools.get_daily_tasks(uid)
 
+    if not plan:
+        return {"export_text": "# 学习计划\n\n尚未生成学习计划，请先完成职业规划分析。\n"}
+
     text = f"""# 学习计划
 
 ## 目标岗位

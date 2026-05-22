@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 from app.db.mysql import get_db
 from app.models.job import Job
 from app.models.job_category import JobCategory
-from app.models.promotion_transition import PromotionTransition
+from app.models.matching import PromotionTransition
 from app.rag.retrievers import job_retriever
 
 router = APIRouter()

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, func
 from sqlalchemy.dialects.mysql import JSON
-from app.db.mysql import Base
+from app.models.base import Base
 
 
 class PlanTemplate(Base):

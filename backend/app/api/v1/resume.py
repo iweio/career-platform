@@ -45,7 +45,7 @@ async def extract_resume(
         "image_path": await save_upload(image),
         "user_id": user["user_id"],
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -62,7 +62,7 @@ async def supplement_resume(
         "user_profile": req.user_profile,
         "user_id": user["user_id"],
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}
 
@@ -76,6 +76,6 @@ async def analyze_resume(
         "input_text": json.dumps(req.user_profile or {}, ensure_ascii=False),
         "user_id": user["user_id"],
     })
-    if "error" in result:
+    if result.get("error"):
         return {"success": False, "error": result["error"]}
     return {"success": True, "data": result}

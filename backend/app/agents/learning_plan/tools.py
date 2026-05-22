@@ -1,41 +1,34 @@
-"""Database tools for learning_plan agent."""
+"""Database tools for learning_plan agent — SQLAlchemy ORM."""
 
-import json
 from datetime import date
-from sqlalchemy import text
+from sqlalchemy import select, func, update
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from app.db.mysql import AsyncSessionLocal
+from app.models.matching import MatchingReport
+from app.models.learning import LearningPlan, DailyTask
 
 
 async def get_target_job(user_id: int) -> dict | None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            text(
-                "SELECT job_name, match_score FROM matching_report "
-                "WHERE user_id = :uid ORDER BY match_score DESC LIMIT 1"
-            ),
-            {"uid": user_id},
+            select(MatchingReport.job_name, MatchingReport.match_score)
+            .where(MatchingReport.user_id == user_id)
+            .order_by(MatchingReport.match_score.desc()).limit(1)
         )
-        row = result.fetchone()
-        return dict(row._mapping) if row else None
+        row = result.first()
+        return {"job_name": row[0], "match_score": float(row[1])} if row else None
 
 
 async def save_learning_plan(user_id: int, target_job: str,
                                plan_type: str, phases: list) -> bool:
     async with AsyncSessionLocal() as db:
-        await db.execute(
-            text(
-                "INSERT INTO learning_plans (user_id, target_job, plan_type, phases, updated_at) "
-                "VALUES (:uid, :tj, :pt, :ph, NOW()) "
-                "ON DUPLICATE KEY UPDATE target_job = :tj2, plan_type = :pt2, "
-                "phases = :ph2, updated_at = NOW()"
-            ),
-            {
-                "uid": user_id, "tj": target_job, "pt": plan_type,
-                "ph": json.dumps(phases, ensure_ascii=False),
-                "tj2": target_job, "pt2": plan_type,
-                "ph2": json.dumps(phases, ensure_ascii=False),
-            },
+        stmt = mysql_insert(LearningPlan).values(
+            user_id=user_id, target_job=target_job, plan_type=plan_type, phases=phases,
+        ).on_duplicate_key_update(
+            target_job=target_job, plan_type=plan_type,
+            phases=phases, updated_at=func.now(),
         )
+        await db.execute(stmt)
         await db.commit()
     return True
 
@@ -43,31 +36,29 @@ async def save_learning_plan(user_id: int, target_job: str,
 async def get_learning_plan(user_id: int) -> dict | None:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            text("SELECT * FROM learning_plans WHERE user_id = :uid"),
-            {"uid": user_id},
+            select(LearningPlan).where(LearningPlan.user_id == user_id)
         )
-        row = result.fetchone()
-        return dict(row._mapping) if row else None
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+        return {
+            "id": row.id, "user_id": row.user_id, "target_job": row.target_job,
+            "plan_type": row.plan_type, "phases": row.phases,
+        }
 
 
 async def save_daily_tasks(user_id: int, tasks: list[dict]) -> int:
     count = 0
     async with AsyncSessionLocal() as db:
         for task in tasks:
-            await db.execute(
-                text(
-                    "INSERT INTO daily_tasks (user_id, task_date, title, description, "
-                    "duration, resources, status) VALUES (:uid, :td, :t, :d, :dur, :res, 'pending')"
-                ),
-                {
-                    "uid": user_id,
-                    "td": date.today(),
-                    "t": task.get("title", ""),
-                    "d": task.get("description", ""),
-                    "dur": task.get("duration", ""),
-                    "res": json.dumps(task.get("resources", []), ensure_ascii=False),
-                },
-            )
+            db.add(DailyTask(
+                user_id=user_id,
+                task_date=date.today(),
+                title=task.get("title", ""),
+                description=task.get("description", ""),
+                duration=task.get("duration", ""),
+                resources=task.get("resources", []),
+            ))
             count += 1
         await db.commit()
     return count
@@ -76,20 +67,23 @@ async def save_daily_tasks(user_id: int, tasks: list[dict]) -> int:
 async def get_daily_tasks(user_id: int) -> list[dict]:
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            text(
-                "SELECT id, task_date, title, description, duration, status "
-                "FROM daily_tasks WHERE user_id = :uid ORDER BY task_date, id"
-            ),
-            {"uid": user_id},
+            select(DailyTask).where(DailyTask.user_id == user_id)
+            .order_by(DailyTask.task_date, DailyTask.id)
         )
-        return [dict(r._mapping) for r in result.fetchall()]
+        return [
+            {
+                "id": t.id, "task_date": str(t.task_date) if t.task_date else None,
+                "title": t.title, "description": t.description,
+                "duration": t.duration, "status": t.status,
+            }
+            for t in result.scalars().all()
+        ]
 
 
 async def update_task_status(task_id: int, status: str) -> bool:
     async with AsyncSessionLocal() as db:
         await db.execute(
-            text("UPDATE daily_tasks SET status = :s WHERE id = :tid"),
-            {"s": status, "tid": task_id},
+            update(DailyTask).where(DailyTask.id == task_id).values(status=status)
         )
         await db.commit()
     return True

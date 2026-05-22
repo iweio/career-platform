@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.llm_factory import get_llm
 from app.agents.job_matcher.state import JobMatcherState
-from app.agents.job_matcher.prompts import WEIGHT_PROMPT, MATCH_PROMPT, MERGE_PROMPT
+from app.agents.job_matcher.prompts import WEIGHT_PROMPT, MATCH_PROMPT, MERGE_PROMPT, SELF_REFLECT_PROMPT
 from app.agents.job_matcher import db_utils
 from app.rag.retrievers import resume_job_matcher
 from app.db.neo4j import neo4j_manager
@@ -155,6 +155,20 @@ async def save_report(state: JobMatcherState) -> Dict:
         )
 
     return {"report_id": 0}
+
+
+async def self_reflect(state: JobMatcherState) -> Dict:
+    results = state.get("ranked_results", [])
+    if not results:
+        return {}
+    llm = get_llm(temperature=0.1)
+    prompt = SELF_REFLECT_PROMPT.format(output=json.dumps(results, ensure_ascii=False))
+    msg = llm.invoke([HumanMessage(content=prompt)])
+    try:
+        refined = _parse_json(msg.content)
+        return {"ranked_results": refined if isinstance(refined, list) else results}
+    except Exception:
+        return {}
 
 
 def _parse_json(content: str) -> dict:

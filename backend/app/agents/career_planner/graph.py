@@ -35,6 +35,7 @@ class CareerPlannerAgent(AgentBase):
         builder.add_node("generate_career_path", nodes.generate_career_path)
         builder.add_node("plot_chart", nodes.plot_chart)
         builder.add_node("save_plan", nodes.save_plan)
+        builder.add_node("self_reflect", nodes.self_reflect)
 
         builder.set_entry_point("get_top_job")
         builder.add_edge("get_top_job", "predict_trends")
@@ -42,7 +43,8 @@ class CareerPlannerAgent(AgentBase):
         builder.add_edge("get_promotion_data", "generate_career_path")
         builder.add_edge("generate_career_path", "plot_chart")
         builder.add_edge("plot_chart", "save_plan")
-        builder.add_edge("save_plan", END)
+        builder.add_edge("save_plan", "self_reflect")
+        builder.add_edge("self_reflect", END)
 
         return builder.compile()
 

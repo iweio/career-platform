@@ -36,6 +36,7 @@ class LearningPlanAgent(AgentBase):
         builder.add_node("load_profile_and_job", nodes.load_profile_and_job)
         builder.add_node("retrieve_resources", nodes.retrieve_resources)
         builder.add_node("generate_plan", nodes.generate_plan)
+        builder.add_node("self_reflect", nodes.self_reflect)
         builder.add_node("generate_daily_tasks", nodes.generate_daily_tasks)
         builder.add_node("polish_plan", nodes.polish_plan)
         builder.add_node("adjust_tasks", nodes.adjust_tasks)
@@ -58,7 +59,8 @@ class LearningPlanAgent(AgentBase):
 
         builder.add_edge("load_profile_and_job", "retrieve_resources")
         builder.add_edge("retrieve_resources", "generate_plan")
-        builder.add_edge("generate_plan", END)
+        builder.add_edge("generate_plan", "self_reflect")
+        builder.add_edge("self_reflect", END)
         builder.add_edge("generate_daily_tasks", END)
         builder.add_edge("polish_plan", END)
         builder.add_edge("adjust_tasks", END)

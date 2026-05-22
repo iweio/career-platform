@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import text
+from sqlalchemy import select, or_
 
 from app.schemas.user import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest
 from app.utils.security import hash_password, verify_password, create_access_token
@@ -10,6 +10,7 @@ from app.db.redis import (
     get_refresh_user, revoke_refresh_token,
 )
 from app.middleware.auth import get_current_user
+from app.models.user import User
 from app.config import settings
 
 router = APIRouter()
@@ -17,28 +18,25 @@ router = APIRouter()
 
 @router.post("/register")
 async def register(req: RegisterRequest, db=Depends(get_db)):
-    existing = await db.execute(
-        text("SELECT id FROM users WHERE username = :u OR email = :e"),
-        {"u": req.username, "e": req.email},
+    result = await db.execute(
+        select(User.id).where(or_(User.username == req.username, User.email == req.email))
     )
-    if existing.fetchone():
+    if result.scalar_one_or_none():
         raise HTTPException(400, "Username or email already exists")
 
-    await db.execute(
-        text("INSERT INTO users (username, email, password_hash) VALUES (:u, :e, :p)"),
-        {"u": req.username, "e": req.email, "p": hash_password(req.password)},
-    )
+    user = User(username=req.username, email=req.email, password_hash=hash_password(req.password))
+    db.add(user)
+    await db.flush()
     await db.commit()
-    return {"success": True, "message": "Registration successful"}
+    return {"success": True, "user_id": user.id, "username": user.username}
 
 
 @router.post("/login", response_model=TokenResponse)
 async def login(req: LoginRequest, db=Depends(get_db)):
     result = await db.execute(
-        text("SELECT id, username, password_hash FROM users WHERE username = :u"),
-        {"u": req.username},
+        select(User.id, User.username, User.password_hash).where(User.username == req.username)
     )
-    row = result.fetchone()
+    row = result.first()
     if not row or not verify_password(req.password, row[2]):
         raise HTTPException(401, "Invalid username or password")
 
@@ -65,11 +63,8 @@ async def refresh(req: RefreshRequest, db=Depends(get_db)):
     if not user_id:
         raise HTTPException(401, "Invalid refresh token")
 
-    result = await db.execute(
-        text("SELECT username FROM users WHERE id = :uid"),
-        {"uid": user_id},
-    )
-    row = result.fetchone()
+    result = await db.execute(select(User.username).where(User.id == user_id))
+    row = result.first()
     if not row:
         raise HTTPException(404, "User not found")
 
@@ -89,9 +84,6 @@ async def refresh(req: RefreshRequest, db=Depends(get_db)):
 
 
 @router.post("/logout")
-async def logout(
-    req: RefreshRequest,
-    user: dict = Depends(get_current_user),
-):
+async def logout(req: RefreshRequest, user: dict = Depends(get_current_user)):
     await revoke_refresh_token(req.refresh_token)
     return {"success": True, "message": "Logged out"}

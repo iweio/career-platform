@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     # Startup: init Redis pool
     await get_redis_pool()
 
-    # Startup: register all agents with Harness
+    # Startup: register all agents
     from app.agents.registry import init_agents
     init_agents()
 

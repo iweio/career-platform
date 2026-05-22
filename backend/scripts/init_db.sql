@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     job_description TEXT,
     requirements TEXT,
     publish_date DATE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_jobs_title (job_title),
+    INDEX idx_jobs_industry (industry)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS user_profiles (
@@ -117,24 +119,6 @@ CREATE TABLE IF NOT EXISTS daily_tasks (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
     INDEX idx_user_status (user_id, status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE IF NOT EXISTS agent_runs (
-    id VARCHAR(36) PRIMARY KEY,
-    agent_id VARCHAR(50) NOT NULL,
-    user_id INT NOT NULL,
-    status ENUM('pending','running','success','failed','cancelled') DEFAULT 'pending',
-    input_hash VARCHAR(64) NOT NULL,
-    input_data JSON NOT NULL,
-    output_data JSON,
-    error_message TEXT,
-    retry_count INT DEFAULT 0,
-    duration_ms INT,
-    started_at DATETIME,
-    completed_at DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_agent_user (agent_id, user_id),
-    INDEX idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Seed data: test user (password = "password123", bcrypt hash)

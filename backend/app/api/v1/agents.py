@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
-from app.agents.harness import harness
+from app.agents.registry import list_agents
 from app.middleware.auth import get_current_user
 
 router = APIRouter()
 
 
 @router.get("")
-async def list_agents(user: dict = Depends(get_current_user)):
-    return {"success": True, "agents": harness.list_agents()}
+async def get_agents(user: dict = Depends(get_current_user)):
+    return {"success": True, "data": list_agents()}

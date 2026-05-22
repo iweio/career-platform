@@ -41,6 +41,7 @@ class ResumeAnalyzerAgent(AgentBase):
         builder.add_node("generate_question", nodes.generate_question)
         builder.add_node("analyze_profile", nodes.analyze_profile)
         builder.add_node("generate_report", nodes.generate_report)
+        builder.add_node("self_reflect", nodes.self_reflect)
 
         builder.set_entry_point("process_text")
         builder.add_edge("process_text", "process_file")
@@ -59,7 +60,8 @@ class ResumeAnalyzerAgent(AgentBase):
         )
         builder.add_edge("generate_question", END)
         builder.add_edge("analyze_profile", "generate_report")
-        builder.add_edge("generate_report", END)
+        builder.add_edge("generate_report", "self_reflect")
+        builder.add_edge("self_reflect", END)
 
         return builder.compile()
 

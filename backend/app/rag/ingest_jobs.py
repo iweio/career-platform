@@ -2,8 +2,9 @@
 
 Called at system startup (FastAPI lifespan) to keep vector index in sync.
 """
-from sqlalchemy import text
+from sqlalchemy import select
 from app.db.mysql import AsyncSessionLocal
+from app.models.job import Job
 from app.rag.embedding import get_embeddings
 from app.rag.vector_store import get_job_collection
 
@@ -14,40 +15,34 @@ async def ingest_all_jobs():
     collection = get_job_collection()
 
     async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            text(
-                "SELECT id, job_title, company, industry, city, salary_range, "
-                "job_description, requirements FROM jobs"
-            )
-        )
-        rows = result.fetchall()
+        result = await db.execute(select(Job))
+        jobs = result.scalars().all()
 
-    if not rows:
+    if not jobs:
         return
 
-    ids = [str(r[0]) for r in rows]
+    ids = [str(j.id) for j in jobs]
     documents = []
     metadatas = []
 
-    for r in rows:
-        text_parts = [r[1] or "", r[6] or "", r[7] or ""]
+    for j in jobs:
+        text_parts = [j.job_title or "", j.job_description or "", j.requirements or ""]
         documents.append("\n".join(text_parts))
         metadatas.append({
-            "job_title": r[1] or "",
-            "company": r[2] or "",
-            "industry": r[3] or "",
-            "city": r[4] or "",
-            "salary_range": r[5] or "",
+            "job_title": j.job_title or "",
+            "company": j.company or "",
+            "industry": j.industry or "",
+            "city": j.city or "",
+            "salary_range": j.salary_range or "",
         })
 
-    # Compute embeddings and upsert
     collection.upsert(
         ids=ids,
         documents=documents,
         metadatas=metadatas,
     )
 
-    print(f"[RAG] Ingested {len(rows)} jobs into ChromaDB.")
+    print(f"[RAG] Ingested {len(jobs)} jobs into ChromaDB.")
 
 
 async def ingest_single_job(job_id: int, job_title: str, job_description: str,

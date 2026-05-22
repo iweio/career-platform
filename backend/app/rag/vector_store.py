@@ -1,11 +1,12 @@
+from typing import Optional as _Optional
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 from app.config import settings
 
-_client: chromadb.PersistentClient | None = None
+_client: _Optional[chromadb.PersistentClient] = None
 
 
-def get_chroma_client() -> chromadb.PersistentClient:
+def get_chroma_client() -> _Optional[chromadb.PersistentClient]:
     global _client
     if _client is None:
         _client = chromadb.PersistentClient(

@@ -36,6 +36,7 @@ class JobMatcherAgent(AgentBase):
         builder.add_node("llm_match", nodes.llm_match)
         builder.add_node("rank_results", nodes.rank_results)
         builder.add_node("save_report", nodes.save_report)
+        builder.add_node("self_reflect", nodes.self_reflect)
 
         builder.set_entry_point("load_user_profile")
         builder.add_edge("load_user_profile", "retrieve_candidates")
@@ -44,7 +45,8 @@ class JobMatcherAgent(AgentBase):
         builder.add_edge("neo4j_enrich", "llm_match")
         builder.add_edge("llm_match", "rank_results")
         builder.add_edge("rank_results", "save_report")
-        builder.add_edge("save_report", END)
+        builder.add_edge("save_report", "self_reflect")
+        builder.add_edge("self_reflect", END)
 
         return builder.compile()
 

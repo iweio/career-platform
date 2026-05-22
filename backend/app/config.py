@@ -6,7 +6,11 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_BASE_URL: str = "https://api.deepseek.com/v1"
     OPENAI_MODEL: str = "deepseek-chat"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-ada-002"
+
+    # Embedding: 阿里云百炼 DashScope
+    DASHSCOPE_API_KEY: str = ""
+    EMBEDDING_BASE_URL: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    EMBEDDING_MODEL: str = "text-embedding-v3"
 
     # MySQL
     MYSQL_HOST: str = "backend-mysql"
@@ -35,11 +39,6 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-
-    # Harness
-    AGENT_MAX_RETRIES: int = 3
-    AGENT_TIMEOUT_SECONDS: int = 300
-    AGENT_ASYNC_WORKERS: int = 4
 
     # Upload
     UPLOAD_DIR: str = "/app/uploads"

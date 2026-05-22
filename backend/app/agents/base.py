@@ -6,13 +6,13 @@ from langgraph.graph import StateGraph
 class AgentBase(ABC):
     @abstractmethod
     def build_graph(self) -> StateGraph:
-        """Build and return a compiled LangGraph StateGraph."""
+        """Build and return a compiled LangGraph StateGraph (with self_reflect node)."""
         ...
 
-    @abstractmethod
     async def run(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute the graph with input data, return structured result."""
-        ...
+        """Execute the graph with input data, return result."""
+        graph = self.build_graph()
+        return await graph.ainvoke(input_data)
 
     @property
     @abstractmethod
@@ -28,15 +28,3 @@ class AgentBase(ABC):
     @abstractmethod
     def description(self) -> str:
         ...
-
-    @property
-    def max_retries(self) -> int:
-        return 3
-
-    @property
-    def timeout_seconds(self) -> int:
-        return 300
-
-    @property
-    def cacheable(self) -> bool:
-        return True

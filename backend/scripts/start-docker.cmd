@@ -1,16 +1,14 @@
 @echo off
 
-rem 启动脚本 - 一键启动整个职业智能体系统
+rem Career Service AI Platform — Start Script
 
 echo ====================================
-echo 职业智能体系统启动脚本
+echo Career Service AI Platform 启动脚本
 echo ====================================
 
-rem 检查 Docker 是否运行
 docker info >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo 错误: Docker 未运行或未安装
-    echo 请确保 Docker 已安装并启动
     pause
     exit /b 1
 )
@@ -30,16 +28,12 @@ timeout /t 15 /nobreak >nul
 echo 3. 检查服务状态...
 docker-compose ps
 
-echo 4. 系统启动完成！
-echo.  
+echo.
 echo 访问地址：
 echo - 前端：http://localhost
-echo - 后端 API：http://localhost:5000
+echo - 后端 API：http://localhost:8000
+echo - API 文档：http://localhost:8000/docs
 echo - Neo4j 浏览器：http://localhost:7474
-
-echo.  
+echo.
 echo 系统已成功启动！
-echo 您可以通过前端页面访问所有功能。
-echo.  
-echo 按任意键退出...
-pause >nul
+pause

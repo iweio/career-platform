@@ -15,6 +15,7 @@ from app.agents.resume_analyzer.prompts import (
     ANALYZE_PROMPT,
     GENERATE_REPORT_PROMPT,
     SUPPLEMENT_EXTRACT_PROMPT,
+    SELF_REFLECT_PROMPT,
 )
 
 
@@ -179,5 +180,15 @@ def generate_report(state: ResumeAnalyzerState) -> Dict:
 
     llm = get_llm(temperature=0.3)
     prompt = GENERATE_REPORT_PROMPT.format(user_profile=profile, analysis_result=analysis)
+    msg = llm.invoke([HumanMessage(content=prompt)])
+    return {"report": msg.content}
+
+
+def self_reflect(state: ResumeAnalyzerState) -> Dict:
+    report = state.get("report", "")
+    if not report:
+        return {}
+    llm = get_llm(temperature=0.1)
+    prompt = SELF_REFLECT_PROMPT.format(output=report)
     msg = llm.invoke([HumanMessage(content=prompt)])
     return {"report": msg.content}

@@ -9,8 +9,9 @@ services:
       MYSQL_DATABASE: career_platform
       MYSQL_USER: user
       MYSQL_PASSWORD: password
+    command: --default-authentication-plugin=mysql_native_password
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
@@ -41,7 +42,7 @@ services:
       - backend-network
     restart: always
     healthcheck:
-      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "neo4jpassword", "RETURN 1"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -84,28 +85,11 @@ services:
     env_file:
       - .env
 
-  arq-worker:
-    build: .
-    container_name: arq-worker
-    command: arq app.worker.WorkerSettings --queue agent_tasks
-    volumes:
-      - chroma_data:/app/chroma_data
-    depends_on:
-      mysql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - backend-network
-    restart: always
-    env_file:
-      - .env
-
   frontend:
     image: nginx:latest
     container_name: career-frontend
     ports:
-      - "80:80"
+      - "8080:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ../career-front-main/dist:/usr/share/nginx/html

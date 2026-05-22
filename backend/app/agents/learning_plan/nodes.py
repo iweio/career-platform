@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.agents.llm_factory import get_llm
 from app.agents.learning_plan.state import LearningPlanState
 from app.agents.learning_plan import prompts, tools
+from app.agents.learning_plan.prompts import SELF_REFLECT_PROMPT
 from app.rag.retrievers import learning_retriever
 
 
@@ -58,6 +59,20 @@ async def generate_plan(state: LearningPlanState) -> Dict:
     uid = state["user_id"]
     await tools.save_learning_plan(uid, target, plan_type, plan.get("phases", []))
     return {"learning_plan": plan}
+
+
+async def self_reflect(state: LearningPlanState) -> Dict:
+    plan = state.get("learning_plan", {})
+    if not plan:
+        return {}
+    llm = get_llm(temperature=0.1)
+    prompt = SELF_REFLECT_PROMPT.format(output=json.dumps(plan, ensure_ascii=False))
+    msg = llm.invoke([HumanMessage(content=prompt)])
+    try:
+        refined = _parse_json(msg.content)
+        return {"learning_plan": refined}
+    except Exception:
+        return {}
 
 
 async def generate_daily_tasks(state: LearningPlanState) -> Dict:

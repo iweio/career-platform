@@ -12,6 +12,7 @@ from app.agents.career_planner.state import CareerPlannerState
 from app.agents.career_planner.prompts import (
     TREND_SYSTEM_PROMPT, TREND_USER_PROMPT,
     PATH_SYSTEM_PROMPT, PATH_USER_PROMPT,
+    SELF_REFLECT_PROMPT,
 )
 from app.agents.career_planner import tools
 
@@ -119,6 +120,20 @@ async def save_plan(state: CareerPlannerState) -> Dict:
         return {"plan_id": pid}
     except Exception:
         return {"plan_id": 0}
+
+
+async def self_reflect(state: CareerPlannerState) -> Dict:
+    career_path = state.get("career_path", {})
+    if not career_path:
+        return {}
+    llm = get_llm(temperature=0.1)
+    prompt = SELF_REFLECT_PROMPT.format(output=json.dumps(career_path, ensure_ascii=False))
+    msg = llm.invoke([HumanMessage(content=prompt)])
+    try:
+        refined = _parse_json(msg.content)
+        return {"career_path": refined}
+    except Exception:
+        return {}
 
 
 def _parse_json(content: str) -> dict:

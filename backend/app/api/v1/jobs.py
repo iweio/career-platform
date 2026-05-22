@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Query, Depends
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.db.mysql import get_db
 from app.models.job import Job
+from app.models.job_category import JobCategory
+from app.models.promotion_transition import PromotionTransition
 from app.rag.retrievers import job_retriever
 
 router = APIRouter()
@@ -87,6 +89,84 @@ async def hot_jobs(db=Depends(get_db)):
             "industry": j.industry, "city": j.city, "salary_range": j.salary_range,
         })
     return {"success": True, "data": jobs}
+
+
+@router.get("/categories")
+async def list_categories(db=Depends(get_db)):
+    result = await db.execute(
+        select(JobCategory).order_by(JobCategory.sort_order)
+    )
+    categories = []
+    for c in result.scalars():
+        categories.append({
+            "id": c.id, "name": c.name, "icon": c.icon,
+            "tag": c.tag, "scarcity": c.insight_scarcity,
+        })
+    return {"success": True, "data": categories}
+
+
+@router.get("/hot-tags")
+async def hot_tags(db=Depends(get_db)):
+    result = await db.execute(
+        select(Job.job_title).order_by(Job.publish_date.desc()).limit(6)
+    )
+    tags = [row[0] for row in result.all()]
+    return {"success": True, "data": tags}
+
+
+@router.get("/{job_id}/graph")
+async def get_job_graph(job_id: int, db=Depends(get_db)):
+    job_result = await db.execute(select(Job).where(Job.id == job_id))
+    job = job_result.scalar_one_or_none()
+    if not job:
+        return {"success": False, "error": "Job not found"}
+
+    trans_result = await db.execute(
+        select(PromotionTransition).where(PromotionTransition.job_id == job_id)
+    )
+    transitions = trans_result.scalars().all()
+
+    nodes = [{"id": f"job_{job.id}", "name": job.job_title, "label": "Job", "color": "#409EFF", "val": 25}]
+    links = []
+
+    seen_skills = set()
+    for t in transitions:
+        skills = t.required_skills or []
+        for skill in skills:
+            if skill not in seen_skills:
+                seen_skills.add(skill)
+                nodes.append({
+                    "id": f"skill_{skill}", "name": skill, "label": "Skill",
+                    "color": "#67C23A", "val": 16,
+                })
+            links.append({"source": f"job_{job.id}", "target": f"skill_{skill}"})
+
+    return {"success": True, "data": {"nodes": nodes, "links": links}}
+
+
+@router.get("/{job_id}/promotion")
+async def get_job_promotion(job_id: int, db=Depends(get_db)):
+    job_result = await db.execute(select(Job).where(Job.id == job_id))
+    job = job_result.scalar_one_or_none()
+    if not job:
+        return {"success": False, "error": "Job not found"}
+
+    trans_result = await db.execute(
+        select(PromotionTransition).where(PromotionTransition.job_id == job_id)
+    )
+    transitions = trans_result.scalars().all()
+
+    paths = []
+    for t in transitions:
+        paths.append({
+            "from": t.current_role,
+            "to": t.next_role,
+            "skills": t.required_skills,
+            "years": t.years_exp,
+            "type": t.transition_type,
+        })
+
+    return {"success": True, "data": {"current_role": job.job_title, "paths": paths}}
 
 
 @router.get("/{job_id}")
